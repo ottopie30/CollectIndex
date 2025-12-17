@@ -71,10 +71,10 @@ export default function CardsPage() {
                         placeholder="Rechercher une carte (ex: Charizard, Pikachu, Mewtwo...)"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
                     />
                     {isLoading && (
-                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400 animate-spin" />
+                        <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 animate-spin" />
                     )}
                 </div>
 
@@ -89,13 +89,13 @@ export default function CardsPage() {
                     <div className="flex glass rounded-xl p-1">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-purple-500/30 text-purple-400' : 'text-white/50 hover:text-white'}`}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}
                         >
                             <Grid3X3 className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setViewMode('list')}
-                            className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-purple-500/30 text-purple-400' : 'text-white/50 hover:text-white'}`}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}
                         >
                             <List className="w-5 h-5" />
                         </button>
@@ -129,7 +129,7 @@ export default function CardsPage() {
                                         </div>
 
                                         {/* Card image */}
-                                        <div className="relative aspect-[63/88] mb-4 rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-blue-900/50">
+                                        <div className="relative aspect-[63/88] mb-4 rounded-xl overflow-hidden bg-white/5">
                                             {card.image ? (
                                                 <Image
                                                     src={getCardImageUrl(card, 'high')}
@@ -147,12 +147,12 @@ export default function CardsPage() {
 
                                         {/* Card info */}
                                         <div className="space-y-1">
-                                            <h3 className="font-semibold text-white text-sm truncate group-hover:text-purple-300 transition-colors">
+                                            <h3 className="font-semibold text-white text-sm truncate group-hover:text-white/80 transition-colors">
                                                 {card.name}
                                             </h3>
                                             <p className="text-xs text-white/50 truncate">{card.set?.name || 'Unknown Set'}</p>
                                             {card.rarity && (
-                                                <span className="inline-block px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">
+                                                <span className="inline-block px-2 py-0.5 bg-white/10 text-white/50 text-xs rounded-full">
                                                     {card.rarity}
                                                 </span>
                                             )}
@@ -172,7 +172,7 @@ export default function CardsPage() {
                                 <Link key={card.id} href={`/cards/${card.id}`}>
                                     <div className="flex items-center gap-4 p-4 glass rounded-xl card-hover">
                                         {/* Card image */}
-                                        <div className="relative w-16 h-22 rounded-lg overflow-hidden bg-gradient-to-br from-purple-900/50 to-blue-900/50 shrink-0">
+                                        <div className="relative w-16 h-22 rounded-lg overflow-hidden bg-white/5 shrink-0">
                                             {card.image ? (
                                                 <Image
                                                     src={getCardImageUrl(card, 'low')}
@@ -193,7 +193,7 @@ export default function CardsPage() {
                                             <h3 className="font-semibold text-white truncate">{card.name}</h3>
                                             <p className="text-sm text-white/50">{card.set?.name || 'Unknown Set'}</p>
                                             {card.rarity && (
-                                                <span className="inline-block mt-1 px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">
+                                                <span className="inline-block mt-1 px-2 py-0.5 bg-white/10 text-white/50 text-xs rounded-full">
                                                     {card.rarity}
                                                 </span>
                                             )}
@@ -203,7 +203,7 @@ export default function CardsPage() {
                                         <ScoreGauge score={score} size="sm" showLabel={false} />
 
                                         {/* Action arrow */}
-                                        <div className="text-white/30 group-hover:text-purple-400 transition-colors">
+                                        <div className="text-white/30 group-hover:text-white/80 transition-colors">
                                             →
                                         </div>
                                     </div>

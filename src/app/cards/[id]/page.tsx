@@ -136,7 +136,7 @@ export default function CardDetailPage() {
                 <div className="lg:col-span-1">
                     <div className="glass rounded-2xl p-6 sticky top-6">
                         {/* Card image */}
-                        <div className="relative aspect-[63/88] rounded-xl overflow-hidden bg-gradient-to-br from-purple-900/50 to-blue-900/50 mb-6">
+                        <div className="relative aspect-[63/88] rounded-xl overflow-hidden bg-white/5 mb-6">
                             {card.image ? (
                                 <Image
                                     src={getCardImageUrl(card, 'high')}
@@ -156,15 +156,15 @@ export default function CardDetailPage() {
                         {/* Quick actions */}
                         <div className="grid grid-cols-3 gap-2">
                             <button className="flex flex-col items-center gap-1 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
-                                <Plus className="w-5 h-5 text-purple-400" />
+                                <Plus className="w-5 h-5 text-white" />
                                 <span className="text-xs text-white/60">Portfolio</span>
                             </button>
                             <button className="flex flex-col items-center gap-1 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
-                                <Bell className="w-5 h-5 text-amber-400" />
+                                <Bell className="w-5 h-5 text-white" />
                                 <span className="text-xs text-white/60">Alerte</span>
                             </button>
                             <button className="flex flex-col items-center gap-1 p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
-                                <Share2 className="w-5 h-5 text-blue-400" />
+                                <Share2 className="w-5 h-5 text-white" />
                                 <span className="text-xs text-white/60">Partager</span>
                             </button>
                         </div>
@@ -181,12 +181,12 @@ export default function CardDetailPage() {
                                 <p className="text-white/50 mt-1">{card.set?.name || 'Unknown Set'}</p>
                                 <div className="flex items-center gap-2 mt-3">
                                     {card.rarity && (
-                                        <span className="px-3 py-1 bg-purple-500/20 text-purple-300 text-sm rounded-full">
+                                        <span className="px-3 py-1 bg-white/10 text-white/70 text-sm rounded-full">
                                             {card.rarity}
                                         </span>
                                     )}
                                     {card.types?.map((type) => (
-                                        <span key={type} className="px-3 py-1 bg-blue-500/20 text-blue-300 text-sm rounded-full">
+                                        <span key={type} className="px-3 py-1 bg-white/10 text-white/70 text-sm rounded-full">
                                             {type}
                                         </span>
                                     ))}
@@ -203,7 +203,7 @@ export default function CardDetailPage() {
                                 <p className="text-sm text-white/50">Prix actuel estimé</p>
                                 <p className="text-3xl font-bold text-white">{formatPrice(currentPrice)}</p>
                             </div>
-                            <div className={`flex items-center gap-1 ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            <div className={`flex items-center gap-1 ${priceChange >= 0 ? 'text-white' : 'text-white/60'}`}>
                                 {priceChange >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                                 <span className="text-lg font-semibold">
                                     {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(1)}%
@@ -216,7 +216,7 @@ export default function CardDetailPage() {
                     {/* Score breakdown */}
                     <div className="glass rounded-2xl p-6">
                         <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-purple-400" />
+                            <BarChart3 className="w-5 h-5 text-white" />
                             Analyse de Spéculation
                         </h2>
 
@@ -278,7 +278,7 @@ export default function CardDetailPage() {
                     {/* Price chart placeholder */}
                     <div className="glass rounded-2xl p-6">
                         <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-purple-400" />
+                            <TrendingUp className="w-5 h-5 text-white" />
                             Historique des Prix
                         </h2>
 
@@ -306,17 +306,17 @@ export default function CardDetailPage() {
                     {/* Recommendations */}
                     <div className="glass rounded-2xl p-6">
                         <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                            <Wallet className="w-5 h-5 text-purple-400" />
+                            <Wallet className="w-5 h-5 text-white" />
                             Recommandation
                         </h2>
 
-                        <div className={`p-4 rounded-xl ${score.total < 40 ? 'bg-emerald-500/10 border border-emerald-500/30' :
-                            score.total < 70 ? 'bg-amber-500/10 border border-amber-500/30' :
-                                'bg-red-500/10 border border-red-500/30'
+                        <div className={`p-4 rounded-xl ${score.total < 40 ? 'bg-white/20 border border-white/30' :
+                            score.total < 70 ? 'bg-white/10 border border-white/20' :
+                                'bg-white/5 border border-white/10'
                             }`}>
-                            <p className={`text-lg font-bold ${score.total < 40 ? 'text-emerald-400' :
-                                score.total < 70 ? 'text-amber-400' :
-                                    'text-red-400'
+                            <p className={`text-lg font-bold ${score.total < 40 ? 'text-white' :
+                                score.total < 70 ? 'text-white/80' :
+                                    'text-white/60'
                                 }`}>
                                 {score.total < 40 ? 'ACHETER / CONSERVER' :
                                     score.total < 70 ? 'SURVEILLER' :

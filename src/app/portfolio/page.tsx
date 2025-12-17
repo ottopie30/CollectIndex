@@ -150,7 +150,7 @@ export default function PortfolioPage() {
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                    className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-5 h-5" />
                     Ajouter une carte
@@ -166,8 +166,8 @@ export default function PortfolioPage() {
                             <p className="text-sm text-white/50">Valeur Totale</p>
                             <p className="text-2xl font-bold text-white mt-1">{formatPrice(totalValue)}</p>
                         </div>
-                        <div className="p-3 rounded-xl bg-purple-500/20">
-                            <Wallet className="w-5 h-5 text-purple-400" />
+                        <div className="p-3 rounded-xl bg-white/20">
+                            <Wallet className="w-5 h-5 text-white" />
                         </div>
                     </div>
                 </div>
@@ -177,19 +177,19 @@ export default function PortfolioPage() {
                     <div className="flex items-start justify-between">
                         <div>
                             <p className="text-sm text-white/50">Plus/Moins Value</p>
-                            <p className={`text-2xl font-bold mt-1 ${totalPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            <p className={`text-2xl font-bold mt-1 ${totalPnL >= 0 ? 'text-white' : 'text-white/60'}`}>
                                 {totalPnL >= 0 ? '+' : ''}{formatPrice(totalPnL)}
                             </p>
                         </div>
-                        <div className={`p-3 rounded-xl ${totalPnL >= 0 ? 'bg-emerald-500/20' : 'bg-red-500/20'}`}>
+                        <div className={`p-3 rounded-xl ${totalPnL >= 0 ? 'bg-white/20' : 'bg-white/10'}`}>
                             {totalPnL >= 0 ? (
-                                <TrendingUp className="w-5 h-5 text-emerald-400" />
+                                <TrendingUp className="w-5 h-5 text-white" />
                             ) : (
-                                <TrendingDown className="w-5 h-5 text-red-400" />
+                                <TrendingDown className="w-5 h-5 text-white/60" />
                             )}
                         </div>
                     </div>
-                    <p className={`text-sm mt-2 ${pnlPercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className={`text-sm mt-2 ${pnlPercent >= 0 ? 'text-white' : 'text-white/60'}`}>
                         {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}% depuis l&apos;achat
                     </p>
                 </div>
@@ -203,8 +203,8 @@ export default function PortfolioPage() {
                                 {portfolio.reduce((sum, c) => sum + c.quantity, 0)}
                             </p>
                         </div>
-                        <div className="p-3 rounded-xl bg-blue-500/20">
-                            <BarChart3 className="w-5 h-5 text-blue-400" />
+                        <div className="p-3 rounded-xl bg-white/20">
+                            <BarChart3 className="w-5 h-5 text-white" />
                         </div>
                     </div>
                     <p className="text-sm text-white/40 mt-2">{portfolio.length} cartes uniques</p>
@@ -237,7 +237,7 @@ export default function PortfolioPage() {
                         <p className="text-white/50">Votre portfolio est vide</p>
                         <button
                             onClick={() => setShowAddModal(true)}
-                            className="mt-4 px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg font-medium hover:bg-purple-500/30 transition-colors"
+                            className="mt-4 px-4 py-2 bg-white/10 text-white rounded-lg font-medium hover:bg-white/20 transition-colors"
                         >
                             Ajouter votre première carte
                         </button>
@@ -271,7 +271,7 @@ export default function PortfolioPage() {
 
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
-                                            <Link href={`/cards/${card.cardId}`} className="font-medium text-white hover:text-purple-400 transition-colors">
+                                            <Link href={`/cards/${card.cardId}`} className="font-medium text-white hover:text-white/80 transition-colors">
                                                 {card.name}
                                             </Link>
                                             <p className="text-sm text-white/50">{card.setName}</p>
@@ -302,7 +302,7 @@ export default function PortfolioPage() {
                                         {/* Value */}
                                         <div className="w-28 text-right">
                                             <p className="font-bold text-white">{formatPrice(card.currentPrice * card.quantity)}</p>
-                                            <p className={`text-sm ${cardPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                            <p className={`text-sm ${cardPnL >= 0 ? 'text-white' : 'text-white/60'}`}>
                                                 {cardPnL >= 0 ? '+' : ''}{cardPnLPercent.toFixed(1)}%
                                             </p>
                                         </div>
@@ -310,7 +310,7 @@ export default function PortfolioPage() {
                                         {/* Actions */}
                                         <button
                                             onClick={() => removeFromPortfolio(card.id)}
-                                            className="p-2 text-white/30 hover:text-red-400 transition-colors"
+                                            className="p-2 text-white/30 hover:text-white transition-colors"
                                         >
                                             <Trash2 className="w-5 h-5" />
                                         </button>
@@ -347,13 +347,13 @@ export default function PortfolioPage() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                     placeholder="Rechercher une carte..."
-                                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50"
+                                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-white/30"
                                 />
                             </div>
                             <button
                                 onClick={handleSearch}
                                 disabled={isSearching}
-                                className="px-4 py-2 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+                                className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
                             >
                                 {isSearching ? '...' : 'Chercher'}
                             </button>
@@ -380,7 +380,7 @@ export default function PortfolioPage() {
                                         <p className="font-medium text-white">{card.name}</p>
                                         <p className="text-sm text-white/50">{card.set?.name}</p>
                                     </div>
-                                    <Plus className="w-5 h-5 text-purple-400" />
+                                    <Plus className="w-5 h-5 text-white" />
                                 </button>
                             ))}
                             {searchResults.length === 0 && searchQuery && !isSearching && (

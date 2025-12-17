@@ -59,13 +59,13 @@ function LoginContent() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950 flex items-center justify-center p-6">
+        <div className="min-h-screen bg-black flex items-center justify-center p-6">
             <div className="glass rounded-3xl p-8 max-w-md w-full border border-white/10">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-2 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                            <BarChart3 className="w-6 h-6 text-white" />
+                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center">
+                            <BarChart3 className="w-6 h-6 text-black" />
                         </div>
                         <span className="text-xl font-bold text-white">Altum Analytics</span>
                     </Link>
@@ -103,7 +103,7 @@ function LoginContent() {
                     <div>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-sm font-medium text-white/70">Mot de passe</label>
-                            <Link href="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300">
+                            <Link href="/forgot-password" className="text-sm text-white/70 hover:text-white">
                                 Mot de passe oublié ?
                             </Link>
                         </div>
@@ -143,11 +143,11 @@ function LoginContent() {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
                             <>
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                 Connexion...
                             </>
                         ) : (
@@ -189,7 +189,7 @@ function LoginContent() {
                 {/* Signup link */}
                 <p className="text-center text-white/60 mt-6">
                     Pas encore de compte ?{' '}
-                    <Link href="/signup" className="text-purple-400 hover:text-purple-300 font-medium">
+                    <Link href="/signup" className="text-white hover:text-white/80 font-medium">
                         Créer un compte
                     </Link>
                 </p>
@@ -201,8 +201,8 @@ function LoginContent() {
 export default function LoginPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             </div>
         }>
             <LoginContent />

@@ -92,11 +92,11 @@ const mockAlerts: Alert[] = [
 
 // Alert type config
 const alertTypeConfig: Record<AlertType, { label: string; icon: typeof TrendingUp; color: string; bgColor: string }> = {
-    price_above: { label: 'Prix au-dessus', icon: ArrowUp, color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
-    price_below: { label: 'Prix en-dessous', icon: ArrowDown, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
-    score_change: { label: 'Score change', icon: AlertTriangle, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
-    pump_detected: { label: 'Pump détecté', icon: TrendingUp, color: 'text-red-400', bgColor: 'bg-red-500/20' },
-    drop_detected: { label: 'Drop détecté', icon: TrendingDown, color: 'text-purple-400', bgColor: 'bg-purple-500/20' }
+    price_above: { label: 'Prix au-dessus', icon: ArrowUp, color: 'text-white', bgColor: 'bg-white/10' },
+    price_below: { label: 'Prix en-dessous', icon: ArrowDown, color: 'text-white', bgColor: 'bg-white/10' },
+    score_change: { label: 'Score change', icon: AlertTriangle, color: 'text-white', bgColor: 'bg-white/10' },
+    pump_detected: { label: 'Pump détecté', icon: TrendingUp, color: 'text-white', bgColor: 'bg-white/10' },
+    drop_detected: { label: 'Drop détecté', icon: TrendingDown, color: 'text-white', bgColor: 'bg-white/10' }
 }
 
 export default function AlertsPage() {
@@ -145,7 +145,7 @@ export default function AlertsPage() {
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                    className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-5 h-5" />
                     Nouvelle alerte
@@ -160,8 +160,8 @@ export default function AlertsPage() {
                             <p className="text-sm text-white/50">Total Alertes</p>
                             <p className="text-2xl font-bold text-white mt-1">{totalAlerts}</p>
                         </div>
-                        <div className="p-3 rounded-xl bg-purple-500/20">
-                            <Bell className="w-5 h-5 text-purple-400" />
+                        <div className="p-3 rounded-xl bg-white/20">
+                            <Bell className="w-5 h-5 text-white" />
                         </div>
                     </div>
                 </div>
@@ -170,10 +170,10 @@ export default function AlertsPage() {
                     <div className="flex items-start justify-between">
                         <div>
                             <p className="text-sm text-white/50">Alertes Actives</p>
-                            <p className="text-2xl font-bold text-emerald-400 mt-1">{activeAlerts}</p>
+                            <p className="text-2xl font-bold text-white mt-1">{activeAlerts}</p>
                         </div>
-                        <div className="p-3 rounded-xl bg-emerald-500/20">
-                            <Check className="w-5 h-5 text-emerald-400" />
+                        <div className="p-3 rounded-xl bg-white/20">
+                            <Check className="w-5 h-5 text-white" />
                         </div>
                     </div>
                 </div>
@@ -182,10 +182,10 @@ export default function AlertsPage() {
                     <div className="flex items-start justify-between">
                         <div>
                             <p className="text-sm text-white/50">Déclenchées</p>
-                            <p className="text-2xl font-bold text-red-400 mt-1">{triggeredAlerts}</p>
+                            <p className="text-2xl font-bold text-white mt-1">{triggeredAlerts}</p>
                         </div>
-                        <div className="p-3 rounded-xl bg-red-500/20">
-                            <AlertTriangle className="w-5 h-5 text-red-400" />
+                        <div className="p-3 rounded-xl bg-white/20">
+                            <AlertTriangle className="w-5 h-5 text-white" />
                         </div>
                     </div>
                 </div>
@@ -196,8 +196,8 @@ export default function AlertsPage() {
                 <button
                     onClick={() => setFilter('all')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'all'
-                            ? 'bg-purple-500/20 text-purple-300'
-                            : 'bg-white/5 text-white/50 hover:bg-white/10'
+                        ? 'bg-white text-black'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10'
                         }`}
                 >
                     Toutes ({totalAlerts})
@@ -205,8 +205,8 @@ export default function AlertsPage() {
                 <button
                     onClick={() => setFilter('active')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'active'
-                            ? 'bg-emerald-500/20 text-emerald-300'
-                            : 'bg-white/5 text-white/50 hover:bg-white/10'
+                        ? 'bg-white text-black'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10'
                         }`}
                 >
                     En attente ({activeAlerts - triggeredAlerts})
@@ -214,8 +214,8 @@ export default function AlertsPage() {
                 <button
                     onClick={() => setFilter('triggered')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === 'triggered'
-                            ? 'bg-red-500/20 text-red-300'
-                            : 'bg-white/5 text-white/50 hover:bg-white/10'
+                        ? 'bg-white text-black'
+                        : 'bg-white/5 text-white/50 hover:bg-white/10'
                         }`}
                 >
                     Déclenchées ({triggeredAlerts})
@@ -230,7 +230,7 @@ export default function AlertsPage() {
                         <p className="text-white/50">Aucune alerte</p>
                         <button
                             onClick={() => setShowCreateModal(true)}
-                            className="mt-4 px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg font-medium hover:bg-purple-500/30 transition-colors"
+                            className="mt-4 px-4 py-2 bg-white/10 text-white rounded-lg font-medium hover:bg-white/20 transition-colors"
                         >
                             Créer votre première alerte
                         </button>
@@ -245,8 +245,8 @@ export default function AlertsPage() {
                                 <div
                                     key={alert.id}
                                     className={`p-4 transition-colors ${alert.triggered
-                                            ? 'bg-red-500/5 hover:bg-red-500/10'
-                                            : 'hover:bg-white/5'
+                                        ? 'bg-white/10 hover:bg-white/15'
+                                        : 'hover:bg-white/5'
                                         }`}
                                 >
                                     <div className="flex items-center gap-4">
@@ -277,7 +277,7 @@ export default function AlertsPage() {
                                                     {config.label}
                                                 </span>
                                                 {alert.triggered && (
-                                                    <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
+                                                    <span className="px-2 py-0.5 bg-white text-black text-xs rounded-full font-medium">
                                                         Déclenché
                                                     </span>
                                                 )}
@@ -290,7 +290,7 @@ export default function AlertsPage() {
 
                                             <Link
                                                 href={`/cards/${alert.cardId}`}
-                                                className="font-medium text-white hover:text-purple-400 transition-colors"
+                                                className="font-medium text-white hover:text-white/80 transition-colors"
                                             >
                                                 {alert.cardName}
                                             </Link>
@@ -306,7 +306,7 @@ export default function AlertsPage() {
                                             </div>
 
                                             {alert.triggeredAt && (
-                                                <div className="flex items-center gap-1 mt-1 text-xs text-red-400">
+                                                <div className="flex items-center gap-1 mt-1 text-xs text-white/60">
                                                     <Clock className="w-3 h-3" />
                                                     Déclenché le {new Date(alert.triggeredAt).toLocaleDateString('fr-FR')}
                                                 </div>
@@ -318,7 +318,7 @@ export default function AlertsPage() {
                                             {alert.triggered && (
                                                 <button
                                                     onClick={() => markAsRead(alert.id)}
-                                                    className="p-2 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-colors"
+                                                    className="p-2 text-white hover:bg-white/20 rounded-lg transition-colors"
                                                     title="Marquer comme lu"
                                                 >
                                                     <Check className="w-5 h-5" />
@@ -327,8 +327,8 @@ export default function AlertsPage() {
                                             <button
                                                 onClick={() => toggleAlert(alert.id)}
                                                 className={`p-2 rounded-lg transition-colors ${alert.active
-                                                        ? 'text-white/30 hover:text-amber-400 hover:bg-amber-500/20'
-                                                        : 'text-emerald-400 hover:bg-emerald-500/20'
+                                                    ? 'text-white/30 hover:text-white hover:bg-white/10'
+                                                    : 'text-white hover:bg-white/20'
                                                     }`}
                                                 title={alert.active ? 'Désactiver' : 'Activer'}
                                             >
@@ -336,7 +336,7 @@ export default function AlertsPage() {
                                             </button>
                                             <button
                                                 onClick={() => deleteAlert(alert.id)}
-                                                className="p-2 text-white/30 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                                                className="p-2 text-white/30 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                                                 title="Supprimer"
                                             >
                                                 <Trash2 className="w-5 h-5" />
@@ -418,7 +418,7 @@ function CreateAlertModal({ onClose, onCreated }: { onClose: () => void; onCreat
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Rechercher une carte..."
-                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50"
+                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-white/30"
                             />
                         </div>
 
@@ -446,13 +446,13 @@ function CreateAlertModal({ onClose, onCreated }: { onClose: () => void; onCreat
                                 <button
                                     key={type}
                                     onClick={() => { setAlertType(type as AlertType); setStep(3); }}
-                                    className={`w-full p-4 rounded-xl flex items-center gap-3 transition-colors text-left ${alertType === type ? 'bg-purple-500/20 border border-purple-500/50' : 'bg-white/5 hover:bg-white/10 border border-transparent'
+                                    className={`w-full p-4 rounded-xl flex items-center gap-3 transition-colors text-left ${alertType === type ? 'bg-white text-black border border-white' : 'bg-white/5 hover:bg-white/10 border border-transparent'
                                         }`}
                                 >
-                                    <div className={`p-2 rounded-lg ${config.bgColor}`}>
-                                        <Icon className={`w-5 h-5 ${config.color}`} />
+                                    <div className={`p-2 rounded-lg ${alertType === type ? 'bg-black/10' : config.bgColor}`}>
+                                        <Icon className={`w-5 h-5 ${alertType === type ? 'text-black' : config.color}`} />
                                     </div>
-                                    <span className="font-medium text-white">{config.label}</span>
+                                    <span className={`font-medium ${alertType === type ? 'text-black' : 'text-white'}`}>{config.label}</span>
                                 </button>
                             )
                         })}
@@ -479,14 +479,14 @@ function CreateAlertModal({ onClose, onCreated }: { onClose: () => void; onCreat
                                 value={threshold}
                                 onChange={(e) => setThreshold(e.target.value)}
                                 placeholder={alertType.includes('price') ? '100.00' : '10'}
-                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50"
+                                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-white/30"
                             />
                         </div>
 
                         <button
                             onClick={handleCreate}
                             disabled={!threshold}
-                            className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                            className="w-full py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
                         >
                             Créer l&apos;alerte
                         </button>

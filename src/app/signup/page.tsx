@@ -77,10 +77,10 @@ export default function SignupPage() {
 
     if (success) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950 flex items-center justify-center p-6">
+            <div className="min-h-screen bg-black flex items-center justify-center p-6">
                 <div className="glass rounded-3xl p-12 max-w-md w-full text-center border border-white/10">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle2 className="w-8 h-8 text-black" />
                     </div>
                     <h1 className="text-2xl font-bold text-white mb-4">Compte créé !</h1>
                     <p className="text-white/60 mb-8">
@@ -88,7 +88,7 @@ export default function SignupPage() {
                     </p>
                     <Link
                         href="/cards"
-                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity"
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors"
                     >
                         Commencer l'analyse
                         <ArrowRight className="w-5 h-5" />
@@ -99,13 +99,13 @@ export default function SignupPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-950 flex items-center justify-center p-6">
+        <div className="min-h-screen bg-black flex items-center justify-center p-6">
             <div className="glass rounded-3xl p-8 max-w-md w-full border border-white/10">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-2 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                            <BarChart3 className="w-6 h-6 text-white" />
+                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center">
+                            <BarChart3 className="w-6 h-6 text-black" />
                         </div>
                         <span className="text-xl font-bold text-white">Altum Analytics</span>
                     </Link>
@@ -199,11 +199,11 @@ export default function SignupPage() {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
                             <>
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                                 Création en cours...
                             </>
                         ) : (
@@ -245,7 +245,7 @@ export default function SignupPage() {
                 {/* Login link */}
                 <p className="text-center text-white/60 mt-6">
                     Déjà un compte ?{' '}
-                    <Link href="/login" className="text-purple-400 hover:text-purple-300 font-medium">
+                    <Link href="/login" className="text-white hover:text-white/80 font-medium">
                         Se connecter
                     </Link>
                 </p>

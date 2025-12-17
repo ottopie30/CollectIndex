@@ -49,8 +49,8 @@ export function ScoreGauge({ score, size = 'md', showLabel = true }: ScoreGaugeP
                     />
                     <defs>
                         <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" className={`stop-color: currentColor`} style={{ stopColor: score < 30 ? '#10b981' : score < 60 ? '#f59e0b' : '#ef4444' }} />
-                            <stop offset="100%" className={`stop-color: currentColor`} style={{ stopColor: score < 30 ? '#22c55e' : score < 60 ? '#f97316' : '#e11d48' }} />
+                            <stop offset="0%" className={`stop-color: currentColor`} style={{ stopColor: score < 30 ? '#ffffff' : score < 60 ? '#d4d4d8' : '#a1a1aa' }} />
+                            <stop offset="100%" className={`stop-color: currentColor`} style={{ stopColor: score < 30 ? '#e4e4e7' : score < 60 ? '#a1a1aa' : '#71717a' }} />
                         </linearGradient>
                     </defs>
                 </svg>
