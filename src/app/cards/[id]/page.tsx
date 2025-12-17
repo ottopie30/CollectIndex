@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { getCard, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { getScoreColor, formatPrice } from '@/lib/utils'
+import { calculateSimplifiedScore, calculateFullScore, FullSpeculationScore } from '@/lib/scoring'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -18,31 +19,21 @@ import {
     Bell,
     Share2,
     BarChart3,
-    Wallet
+    Wallet,
+    Info
 } from 'lucide-react'
 
-// Mock scoring data
-function generateMockScore(cardId: string) {
-    const hash = cardId.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)
-    const total = Math.abs(hash % 100)
-    return {
-        total,
-        d1_volatility: Math.abs((hash * 13) % 100),
-        d2_growth: Math.abs((hash * 17) % 100),
-        d3_scarcity: Math.abs((hash * 23) % 100),
-        d4_sentiment: Math.abs((hash * 29) % 100),
-        d5_macro: Math.abs((hash * 31) % 100),
-    }
-}
-
-// Mock price data
-function generateMockPriceHistory() {
+// Generate mock price history (will be replaced by real data later)
+function generateMockPriceHistory(cardName: string) {
     const now = Date.now()
     const data = []
-    let basePrice = 50 + Math.random() * 200
+    // Use card name to seed the random for consistency
+    const seed = cardName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+    let basePrice = 20 + (seed % 200)
 
     for (let i = 90; i >= 0; i--) {
-        basePrice *= 0.98 + Math.random() * 0.04
+        const volatility = 0.02 + ((seed % 10) / 100)
+        basePrice *= (1 - volatility) + (Math.random() * 2 * volatility)
         data.push({
             date: new Date(now - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             price: Math.round(basePrice * 100) / 100
@@ -57,14 +48,41 @@ export default function CardDetailPage() {
 
     const [card, setCard] = useState<TCGdexCard | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [priceHistory] = useState(generateMockPriceHistory())
+    const [fullScore, setFullScore] = useState<FullSpeculationScore | null>(null)
 
-    const score = generateMockScore(cardId)
+    // Generate price history based on card name for consistency
+    const priceHistory = useMemo(() => {
+        return card ? generateMockPriceHistory(card.name) : []
+    }, [card])
+
+    // Calculate real score when card data is available
+    useEffect(() => {
+        if (card && priceHistory.length > 0) {
+            const currentPrice = priceHistory[priceHistory.length - 1]?.price || 0
+            const priceOneYearAgo = priceHistory[0]?.price || currentPrice
+
+            const score = calculateFullScore({
+                priceHistory: priceHistory.map(p => ({ price: p.price, date: new Date(p.date) })),
+                currentPrice,
+                priceOneYearAgo,
+                rarity: card.rarity,
+                setId: card.set?.id || '',
+                pokemonName: card.name,
+                isVintage: card.set?.id?.startsWith('base') || card.set?.id?.startsWith('neo')
+            })
+            setFullScore(score)
+        }
+    }, [card, priceHistory])
+
+    const score = fullScore || {
+        total: card ? calculateSimplifiedScore({ rarity: card.rarity, setId: card.set?.id, pokemonName: card.name }) : 50,
+        d1: { score: 50 }, d2: { score: 50 }, d3: { score: 50 }, d4: { score: 50 }, d5: { score: 50 }
+    }
     const scoreColors = getScoreColor(score.total)
 
     const currentPrice = priceHistory[priceHistory.length - 1]?.price || 0
     const oldPrice = priceHistory[0]?.price || currentPrice
-    const priceChange = ((currentPrice - oldPrice) / oldPrice) * 100
+    const priceChange = oldPrice > 0 ? ((currentPrice - oldPrice) / oldPrice) * 100 : 0
 
     useEffect(() => {
         async function fetchCard() {
@@ -204,11 +222,11 @@ export default function CardDetailPage() {
 
                         <div className="space-y-4">
                             {[
-                                { name: 'D1: Volatilité', score: score.d1_volatility, description: 'Variation des prix' },
-                                { name: 'D2: Croissance', score: score.d2_growth, description: 'Rendement vs benchmark' },
-                                { name: 'D3: Rareté', score: score.d3_scarcity, description: 'Offre vs demande' },
-                                { name: 'D4: Sentiment', score: score.d4_sentiment, description: 'Hype réseaux sociaux' },
-                                { name: 'D5: Macro', score: score.d5_macro, description: 'Corrélation crypto/marché' },
+                                { name: 'D1: Volatilité', score: score.d1?.score ?? 50, description: 'Variation des prix' },
+                                { name: 'D2: Croissance', score: score.d2?.score ?? 50, description: 'Rendement vs benchmark' },
+                                { name: 'D3: Rareté', score: score.d3?.score ?? 50, description: 'Offre vs demande' },
+                                { name: 'D4: Sentiment', score: score.d4?.score ?? 50, description: 'Hype réseaux sociaux' },
+                                { name: 'D5: Macro', score: score.d5?.score ?? 50, description: 'Corrélation crypto/marché' },
                             ].map((dim) => {
                                 const dimColors = getScoreColor(dim.score)
                                 return (
