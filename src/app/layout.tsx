@@ -1,0 +1,41 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Header } from "@/components/layout/Header";
+
+const inter = Inter({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Altum Analytics | Intelligence d'Investissement Pokémon",
+  description: "Plateforme d'analyse et de scoring pour investisseurs en cartes Pokémon. Détectez les spéculations, anticipez les corrections, optimisez votre portefeuille.",
+  keywords: ["pokemon", "tcg", "investment", "analytics", "trading cards", "speculation"],
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="fr" className="dark">
+      <body className={`${inter.variable} antialiased bg-gradient-animated min-h-screen`}>
+        <div className="flex min-h-screen">
+          {/* Sidebar */}
+          <Sidebar />
+
+          {/* Main content */}
+          <div className="flex-1 ml-64 flex flex-col">
+            <Header />
+            <main className="flex-1 p-6 overflow-auto">
+              {children}
+            </main>
+          </div>
+        </div>
+      </body>
+    </html>
+  );
+}
