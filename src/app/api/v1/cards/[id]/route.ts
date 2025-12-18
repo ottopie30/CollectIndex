@@ -2,7 +2,7 @@
 // GET /api/v1/cards/[id]
 
 import { NextResponse } from 'next/server'
-import { getCard, getCardImageUrl } from '@/lib/tcgdex'
+import { getCard } from '@/lib/tcgdex'
 import { getCardWithPrices, getAllPrices } from '@/lib/pokemontcg'
 import { calculateSimplifiedScore } from '@/lib/scoring'
 import { getTierFromRequest } from '@/lib/api/apiKeys'
@@ -10,9 +10,9 @@ import { withRateLimit } from '@/lib/api/rateLimit'
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const cardId = params.id
+    const { id: cardId } = await params
 
     // Get tier and check rate limit
     const { tier, identifier } = await getTierFromRequest(request)
