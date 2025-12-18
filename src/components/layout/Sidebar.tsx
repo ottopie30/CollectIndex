@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
     LayoutDashboard,
@@ -38,9 +39,13 @@ export function Sidebar() {
             <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
                 {!collapsed && (
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center">
-                            <TrendingUp className="w-6 h-6 text-black" />
-                        </div>
+                        <Image
+                            src="/logo.png"
+                            alt="Altum Analytics Logo"
+                            width={40}
+                            height={40}
+                            className="rounded-xl"
+                        />
                         <div>
                             <h1 className="font-bold text-white">Altum</h1>
                             <p className="text-xs text-white/50">Analytics</p>
@@ -48,9 +53,13 @@ export function Sidebar() {
                     </Link>
                 )}
                 {collapsed && (
-                    <div className="w-10 h-10 mx-auto rounded-xl bg-white flex items-center justify-center">
-                        <TrendingUp className="w-6 h-6 text-black" />
-                    </div>
+                    <Image
+                        src="/logo.png"
+                        alt="Altum Analytics Logo"
+                        width={40}
+                        height={40}
+                        className="mx-auto rounded-xl"
+                    />
                 )}
             </div>
 
