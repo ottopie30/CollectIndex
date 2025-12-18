@@ -1,5 +1,7 @@
 // Price service for fetching and managing card prices
-// Using CardMarket and TCGPlayer API data (via scraping/proxy services)
+// Using Pokemon TCG API for real market prices
+
+import { getCardWithPrices, getAllPrices, PokemonTCGCard } from './pokemontcg'
 
 export type PriceData = {
     cardId: string
@@ -31,10 +33,35 @@ export type PriceHistory = {
 const priceCache = new Map<string, { data: PriceData; expiry: number }>()
 const CACHE_TTL = 1000 * 60 * 15 // 15 minutes
 
-// Mock price data generator (simulates real API)
-function generateMockPrice(cardId: string): PriceData {
+// Convert Pokemon TCG card to our PriceData format
+function convertToPriceData(card: PokemonTCGCard): PriceData {
+    const allPrices = getAllPrices(card)
+
+    return {
+        cardId: card.id,
+        prices: {
+            cardmarket: allPrices.cardmarket ? {
+                trendPrice: allPrices.cardmarket.trend || 0,
+                lowPrice: allPrices.cardmarket.low || 0,
+                avg30: allPrices.cardmarket.avg30 || 0,
+                avg7: allPrices.cardmarket.avg7 || 0,
+                avg1: allPrices.cardmarket.avg1 || 0,
+            } : undefined,
+            tcgplayer: allPrices.tcgplayer ? {
+                market: allPrices.tcgplayer.market || 0,
+                low: allPrices.tcgplayer.low || 0,
+                mid: allPrices.tcgplayer.mid || 0,
+                high: allPrices.tcgplayer.high || 0,
+            } : undefined
+        },
+        lastUpdated: card.cardmarket?.updatedAt || card.tcgplayer?.updatedAt || new Date().toISOString()
+    }
+}
+
+// Fallback mock price generator (for cards not in Pokemon TCG API)
+function generateFallbackPrice(cardId: string): PriceData {
     const basePrice = Math.random() * 200 + 5 // 5-205€
-    const variance = 0.15 // 15% variance
+    const variance = 0.15
 
     return {
         cardId,
@@ -47,7 +74,7 @@ function generateMockPrice(cardId: string): PriceData {
                 avg1: basePrice * (1 + Math.random() * 0.05 - 0.025),
             },
             tcgplayer: {
-                market: basePrice * 1.1, // USD slightly higher
+                market: basePrice * 1.1,
                 low: basePrice * 0.9,
                 mid: basePrice * 1.05,
                 high: basePrice * 1.3,
@@ -57,31 +84,7 @@ function generateMockPrice(cardId: string): PriceData {
     }
 }
 
-// Generate mock price history
-export function generatePriceHistory(cardId: string, days: number = 90): PriceHistory[] {
-    const history: PriceHistory[] = []
-    const today = new Date()
-    let basePrice = Math.random() * 100 + 20
-
-    for (let i = days; i >= 0; i--) {
-        const date = new Date(today)
-        date.setDate(date.getDate() - i)
-
-        // Add some realistic variance
-        const change = (Math.random() - 0.48) * 5 // Slight upward bias
-        basePrice = Math.max(5, basePrice + change)
-
-        history.push({
-            date: date.toISOString().split('T')[0],
-            price: Math.round(basePrice * 100) / 100,
-            source: 'cardmarket'
-        })
-    }
-
-    return history
-}
-
-// Get price for a single card
+// Get price for a single card (uses real API)
 export async function getCardPrice(cardId: string): Promise<PriceData | null> {
     // Check cache first
     const cached = priceCache.get(cardId)
@@ -90,9 +93,19 @@ export async function getCardPrice(cardId: string): Promise<PriceData | null> {
     }
 
     try {
-        // In production, this would call a real API
-        // For now, generate mock data
-        const priceData = generateMockPrice(cardId)
+        // Fetch from Pokemon TCG API
+        const card = await getCardWithPrices(cardId)
+
+        let priceData: PriceData
+
+        if (card && (card.cardmarket || card.tcgplayer)) {
+            // Real data available
+            priceData = convertToPriceData(card)
+        } else {
+            // Fallback to mock data
+            console.warn(`No price data for ${cardId}, using fallback`)
+            priceData = generateFallbackPrice(cardId)
+        }
 
         // Cache the result
         priceCache.set(cardId, {
@@ -179,4 +192,30 @@ export function getCacheStats(): { size: number; oldestEntry: string | null } {
         size: priceCache.size,
         oldestEntry: oldestKey
     }
+}
+
+// Generate price history for a card (mock data for now - would use historical API)
+export function generatePriceHistory(cardId: string, days: number = 90): PriceHistory[] {
+    const history: PriceHistory[] = []
+    const today = new Date()
+    // Use cardId to seed a consistent base price
+    const seed = cardId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+    let basePrice = (seed % 150) + 20
+
+    for (let i = days; i >= 0; i--) {
+        const date = new Date(today)
+        date.setDate(date.getDate() - i)
+
+        // Add some realistic variance
+        const change = (Math.random() - 0.48) * 5 // Slight upward bias
+        basePrice = Math.max(5, basePrice + change)
+
+        history.push({
+            date: date.toISOString().split('T')[0],
+            price: Math.round(basePrice * 100) / 100,
+            source: 'cardmarket'
+        })
+    }
+
+    return history
 }
