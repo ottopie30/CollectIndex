@@ -1,63 +1,88 @@
+// Cron job API route for syncing prices to database
+// This endpoint is called daily by Vercel Cron
+
 import { NextResponse } from 'next/server'
-import { getCardPrices, clearExpiredCache } from '@/lib/prices'
+import { searchCardsWithPrices } from '@/lib/pokemontcg'
+import { savePricesBatch } from '@/lib/priceDb'
 
-// This endpoint is called by Vercel Cron
-// Configure in vercel.json: { "crons": [{ "path": "/api/cron/sync-prices", "schedule": "0 */6 * * *" }] }
-
-export const dynamic = 'force-dynamic'
-
-// List of popular cards to sync regularly
-const POPULAR_CARDS = [
-    'base1-4', // Charizard
-    'base1-58', // Pikachu
-    'neo1-9', // Lugia
-    'neo1-11', // Mewtwo
-    'sv1-1', // Sprigatito
-    'sv1-195', // Koraidon
-    'swsh12pt5-160', // Pikachu VMAX
-    'swsh9-166', // Charizard V
-    'sm12-195', // Umbreon
-    'xy12-26', // Reshiram
+// Popular Pokemon cards to sync daily
+const POPULAR_POKEMON = [
+    'charizard',
+    'pikachu',
+    'mewtwo',
+    'mew',
+    'blastoise',
+    'gyarados',
+    'gengar',
+    'alakazam',
+    'dragonite',
+    'snorlax',
+    'eevee',
+    'lugia',
+    'ho-oh',
+    'rayquaza',
+    'umbreon'
 ]
 
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60 // 60 seconds timeout
+
 export async function GET(request: Request) {
-    // Verify cron secret (set in Vercel environment)
+    // Verify cron secret for security
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
-    // In production, verify the request is from Vercel Cron
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json(
-            { error: 'Unauthorized' },
-            { status: 401 }
-        )
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     try {
         const startTime = Date.now()
+        let totalSaved = 0
+        let totalFailed = 0
 
-        // Clear expired cache first
-        const cleared = clearExpiredCache()
+        console.log(`[CRON] Starting price sync at ${new Date().toISOString()}`)
 
-        // Sync popular cards
-        const prices = await getCardPrices(POPULAR_CARDS)
+        // Sync prices for popular Pokemon
+        for (const pokemon of POPULAR_POKEMON) {
+            try {
+                const cards = await searchCardsWithPrices(pokemon, 10)
+                const { saved, failed } = await savePricesBatch(cards)
+                totalSaved += saved
+                totalFailed += failed
+                console.log(`[CRON] ${pokemon}: ${saved} saved, ${failed} failed`)
+            } catch (error) {
+                console.error(`[CRON] Error syncing ${pokemon}:`, error)
+                totalFailed += 1
+            }
+
+            // Rate limiting - wait 500ms between calls
+            await new Promise(resolve => setTimeout(resolve, 500))
+        }
 
         const duration = Date.now() - startTime
 
         return NextResponse.json({
             success: true,
-            synced: prices.size,
-            cacheCleared: cleared,
-            cards: POPULAR_CARDS,
-            duration: `${duration}ms`,
-            timestamp: new Date().toISOString()
+            message: 'Price sync completed',
+            stats: {
+                saved: totalSaved,
+                failed: totalFailed,
+                duration: `${duration}ms`,
+                timestamp: new Date().toISOString()
+            }
         })
 
     } catch (error) {
-        console.error('Cron sync error:', error)
+        console.error('[CRON] Price sync failed:', error)
         return NextResponse.json(
-            { error: 'Sync failed', message: error instanceof Error ? error.message : 'Unknown error' },
+            { error: 'Price sync failed', details: String(error) },
             { status: 500 }
         )
     }
+}
+
+// Also allow POST for manual triggers
+export async function POST(request: Request) {
+    return GET(request)
 }

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Filter, SlidersHorizontal, Grid3X3, List, Loader2 } from 'lucide-react'
+import { Search, Filter, SlidersHorizontal, Grid3X3, List, Loader2, Globe } from 'lucide-react'
 import { searchCards, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { getScoreColor } from '@/lib/utils'
+import { getMultilingualSearchTerms, translateSearchQuery } from '@/lib/translations'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -25,7 +26,7 @@ export default function CardsPage() {
         scoreRange: [0, 100] as [number, number]
     })
 
-    // Debounced search
+    // Debounced search with multilingual support
     const performSearch = useCallback(async (searchQuery: string) => {
         if (searchQuery.length < 2) {
             setCards([])
@@ -34,8 +35,28 @@ export default function CardsPage() {
 
         setIsLoading(true)
         try {
-            const results = await searchCards(searchQuery)
-            setCards(results.slice(0, 50)) // Limit to 50 results
+            // Get search terms in both languages
+            const searchTerms = getMultilingualSearchTerms(searchQuery)
+
+            // Search with all terms in parallel
+            const allResults = await Promise.all(
+                searchTerms.map(term => searchCards(term))
+            )
+
+            // Merge and deduplicate results
+            const seen = new Set<string>()
+            const uniqueCards: TCGdexCard[] = []
+
+            for (const results of allResults) {
+                for (const card of results) {
+                    if (!seen.has(card.id)) {
+                        seen.add(card.id)
+                        uniqueCards.push(card)
+                    }
+                }
+            }
+
+            setCards(uniqueCards.slice(0, 50)) // Limit to 50 results
         } catch (error) {
             console.error('Search error:', error)
         } finally {
@@ -68,11 +89,12 @@ export default function CardsPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                     <input
                         type="text"
-                        placeholder="Rechercher une carte (ex: Charizard, Pikachu, Mewtwo...)"
+                        placeholder="Rechercher une carte (FR ou EN: Dracaufeu, Charizard...)"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
+                        className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
                     />
+                    <Globe className="absolute right-12 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                     {isLoading && (
                         <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 animate-spin" />
                     )}
