@@ -6,13 +6,14 @@ import { searchCards, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { getScoreColor } from '@/lib/utils'
 import { getMultilingualSearchTerms, translateSearchQuery } from '@/lib/translations'
+import { getCardScore } from '@/lib/cardScores'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useI18n } from '@/lib/i18n/provider'
 
-// Mock function to generate random scores (will be replaced by real scoring)
-function generateMockScore(cardId: string): number {
-    const hash = cardId.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)
+// Generate consistent score based on card ID hash (fallback)
+function hashScore(id: string): number {
+    const hash = id.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)
     return Math.abs(hash % 100)
 }
 
@@ -142,7 +143,7 @@ export default function CardsPage() {
                 viewMode === 'grid' ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                         {cards.map((card) => {
-                            const score = generateMockScore(card.id)
+                            const score = hashScore(card.id)
                             const scoreColors = getScoreColor(score)
 
                             return (
@@ -192,7 +193,7 @@ export default function CardsPage() {
                 ) : (
                     <div className="space-y-2">
                         {cards.map((card) => {
-                            const score = generateMockScore(card.id)
+                            const score = hashScore(card.id)
                             const scoreColors = getScoreColor(score)
 
                             return (

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect, useCallback } from 'react'
 import {
   TrendingUp,
   TrendingDown,
@@ -8,34 +9,20 @@ import {
   Wallet,
   Zap,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { useI18n } from '@/lib/i18n/provider'
-
-// Mock data for demonstration
-const marketStats = {
-  vintageIndex: { value: 3.2, change: 3.2 },
-  modernIndex: { value: -8.7, change: -8.7 },
-  speculationSentiment: 65,
-  correctionProbability: 42,
-  btcCorrelation: 0.72,
-  fearGreedIndex: 68,
-}
-
-const trendingCards = [
-  { id: '1', name: 'Charizard Base Set', set: '1st Edition', score: 15, price: 8500, change: 2.5, image: null },
-  { id: '2', name: 'Pikachu Stamp', set: 'Japanese Promo', score: 90, price: 400, change: -12.3, image: null },
-  { id: '3', name: 'Giratina V', set: 'Lost Origin', score: 72, price: 45, change: -8.5, image: null },
-  { id: '4', name: 'Umbreon VMAX', set: 'Evolving Skies', score: 58, price: 320, change: 5.2, image: null },
-]
-
-const alerts = [
-  { type: 'critical', message: 'Stamp Pikachu: Surévaluation extrême détectée', score: 98 },
-  { type: 'warning', message: 'Sentiment spéculatif élevé sur cartes modernes', score: 75 },
-  { type: 'opportunity', message: 'Giratina V: Rebond probable après correction', score: 72 },
-]
+import {
+  getMarketStats,
+  getTrendingCards,
+  getDashboardAlerts,
+  MarketStats,
+  TrendingCard,
+  DashboardAlert
+} from '@/lib/marketStats'
 
 function StatCard({
   title,
@@ -74,6 +61,49 @@ function StatCard({
 
 export default function Dashboard() {
   const { t } = useI18n()
+  const [isLoading, setIsLoading] = useState(true)
+  const [marketStats, setMarketStats] = useState<MarketStats>({
+    vintageIndex: { value: 0, change: 0 },
+    modernIndex: { value: 0, change: 0 },
+    speculationSentiment: 0,
+    correctionProbability: 0,
+    btcCorrelation: 0,
+    fearGreedIndex: 0
+  })
+  const [trendingCards, setTrendingCards] = useState<TrendingCard[]>([])
+  const [alerts, setAlerts] = useState<DashboardAlert[]>([])
+
+  // Load dashboard data from Supabase
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const [stats, cards, dashAlerts] = await Promise.all([
+        getMarketStats(),
+        getTrendingCards(),
+        getDashboardAlerts()
+      ])
+      setMarketStats(stats)
+      setTrendingCards(cards)
+      setAlerts(dashAlerts)
+    } catch (error) {
+      console.error('Error loading dashboard:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [loadDashboardData])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-white animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -146,7 +176,7 @@ export default function Dashboard() {
                 {/* Card info */}
                 <div className="flex-1">
                   <h3 className="font-medium text-white">{card.name}</h3>
-                  <p className="text-sm text-white/50">{card.set}</p>
+                  <p className="text-sm text-white/50">{card.set_name}</p>
                 </div>
 
                 {/* Score */}
