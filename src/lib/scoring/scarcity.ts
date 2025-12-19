@@ -115,7 +115,7 @@ export function getSupplyDemandScore(
     if (ratio > 1.5) return 60
     if (ratio > 0.5) return 40
     if (ratio > 0.2) return 25
-    return 10 // Low demand
+    return 30 // Low demand/liquidity (floored at 30 for vintage items)
 }
 
 /**

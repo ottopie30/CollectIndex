@@ -19,25 +19,25 @@ export function getScoreColor(score: number): {
 } {
     if (score < 30) {
         return {
-            bg: 'bg-white/20',
-            text: 'text-white',
+            bg: 'bg-emerald-500/20',
+            text: 'text-emerald-400',
             label: 'Investissement',
-            gradient: 'from-white to-white/70'
+            gradient: 'from-emerald-500 to-emerald-600'
         }
     }
     if (score < 60) {
         return {
-            bg: 'bg-white/10',
-            text: 'text-white/80',
+            bg: 'bg-amber-500/20',
+            text: 'text-amber-400',
             label: 'Transition',
-            gradient: 'from-white/80 to-white/50'
+            gradient: 'from-amber-500 to-amber-600'
         }
     }
     return {
-        bg: 'bg-white/5',
-        text: 'text-white/60',
+        bg: 'bg-rose-500/20',
+        text: 'text-rose-400',
         label: 'Spéculation',
-        gradient: 'from-white/60 to-white/30'
+        gradient: 'from-rose-500 to-rose-600'
     }
 }
 

@@ -400,7 +400,7 @@ export default function CardDetailPage() {
                                 {/* RSI */}
                                 <div className="p-4 bg-white/5 rounded-xl">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm text-white/50">RSI (14)</span>
+                                        <span className="text-sm text-white/50" title="Relative Strength Index">RSI (14)</span>
                                         {technicals.isOversold && (
                                             <span className="px-2 py-0.5 bg-white text-black text-xs rounded-full font-medium">
                                                 Survente
@@ -413,15 +413,15 @@ export default function CardDetailPage() {
                                         {technicals.rsi14.toFixed(1)}
                                     </p>
                                     <p className="text-xs text-white/40 mt-1">
-                                        {technicals.rsi14 < 30 ? 'Zone de survente' :
-                                            technicals.rsi14 > 70 ? 'Zone de surachat' : 'Zone neutre'}
+                                        {technicals.rsi14 < 30 ? 'Zone de survente (Opportunité)' :
+                                            technicals.rsi14 > 70 ? 'Zone de surachat (Risque)' : 'Zone neutre (30-70)'}
                                     </p>
                                 </div>
 
                                 {/* MACD */}
                                 <div className="p-4 bg-white/5 rounded-xl">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm text-white/50">MACD</span>
+                                        <span className="text-sm text-white/50" title="Moving Average Convergence Divergence">MACD</span>
                                         {technicals.isMACDBullish && (
                                             <span className="px-2 py-0.5 bg-white text-black text-xs rounded-full font-medium">
                                                 Bullish
@@ -433,7 +433,7 @@ export default function CardDetailPage() {
                                         {technicals.macd.histogram > 0 ? '+' : ''}{technicals.macd.histogram.toFixed(3)}
                                     </p>
                                     <p className="text-xs text-white/40 mt-1">
-                                        Signal: {technicals.macd.signalLine.toFixed(3)}
+                                        {technicals.macd.histogram > 0 ? 'Tendance Haussière' : 'Tendance Baissière'}
                                     </p>
                                 </div>
 
@@ -452,7 +452,7 @@ export default function CardDetailPage() {
                                         {technicals.volumeRatio.toFixed(1)}x
                                     </p>
                                     <p className="text-xs text-white/40 mt-1">
-                                        vs moyenne
+                                        vs moyenne 30 jours
                                     </p>
                                 </div>
                             </div>
@@ -494,35 +494,43 @@ export default function CardDetailPage() {
                             Recommandation
                         </h2>
 
-                        <div className={`p-4 rounded-xl border ${(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                ? 'bg-green-500/10 border-green-500/20'
-                                : score.total < 40
-                                    ? 'bg-blue-500/10 border-blue-500/20'
-                                    : 'bg-red-500/10 border-red-500/20'
+                        <div className={`p-4 rounded-xl border ${(isVintage && score.total < 60)
+                                ? 'bg-amber-500/10 border-amber-500/20'
+                                : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                    ? 'bg-green-500/10 border-green-500/20'
+                                    : score.total < 40
+                                        ? 'bg-blue-500/10 border-blue-500/20'
+                                        : 'bg-red-500/10 border-red-500/20'
                             }`}>
-                            <p className={`text-lg font-bold ${(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                    ? 'text-green-400'
-                                    : score.total < 40
-                                        ? 'text-blue-400'
-                                        : 'text-red-400'
+                            <p className={`text-lg font-bold ${(isVintage && score.total < 60)
+                                    ? 'text-amber-400'
+                                    : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                        ? 'text-green-400'
+                                        : score.total < 40
+                                            ? 'text-blue-400'
+                                            : 'text-red-400'
                                 }`}>
-                                {(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                    ? 'OPPORTUNITÉ D\'ACHAT'
-                                    : score.total < 40
-                                        ? 'CONSERVER (LONG TERME)'
-                                        : 'VENDRE / ÉVITER'}
+                                {(isVintage && score.total < 60)
+                                    ? 'CONSERVER (VINTAGE)'
+                                    : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                        ? 'OPPORTUNITÉ D\'ACHAT'
+                                        : score.total < 40
+                                            ? 'CONSERVER (LONG TERME)'
+                                            : 'VENDRE / ÉVITER'}
                             </p>
                             <p className="text-sm text-white/60 mt-2">
-                                {(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                    ? "Les indicateurs techniques signalent un momentum positif. C'est un bon point d'entrée."
-                                    : score.total < 40
-                                        ? "Fondamentaux solides et faible volatilité. Idéal pour une détention long terme en collection."
-                                        : "Risque de correction élevé ou tendance baissière. Prise de bénéfices conseillée."}
+                                {(isVintage && score.total < 60)
+                                    ? "Les pièces vintage sont des valeurs de collection à long terme. À conserver précieusement."
+                                    : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                        ? "Signaux techniques haussiers détectés. Momentum favorable."
+                                        : score.total < 40
+                                            ? "Fondamentaux solides. Idéal pour collectionneurs."
+                                            : "Risque élevé et momentum faible. Prise de bénéfices conseillée."}
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }
