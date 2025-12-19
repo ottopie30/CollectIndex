@@ -112,9 +112,17 @@ export default function CardDetailPage() {
                             // Clean name (remove (JTG 161) suffix if present)
                             const cleanName = searchName.split('(')[0].trim()
 
-                            console.log(`⚠️ Pricing Fallback: Searching for name:"${cleanName}" number:${number}`)
+                            // Optimize query by adding Set Name if available
+                            let searchQuery = `name:"${cleanName}" number:${number}`
+                            if (cardData.set && cardData.set.name) {
+                                // Remove special chars from set name to avoid query syntax errors
+                                const cleanSet = cardData.set.name.replace(/[^\w\s]/g, '')
+                                searchQuery += ` set.name:"${cleanSet}*"`
+                            }
 
-                            const searchResults = await searchCardsWithPrices(`name:"${cleanName}" number:${number}`, 1)
+                            console.log(`⚠️ Pricing Fallback: Searching for ${searchQuery}`)
+
+                            const searchResults = await searchCardsWithPrices(searchQuery, 1)
                             if (searchResults.length > 0) {
                                 tcgCard = searchResults[0]
                             }
