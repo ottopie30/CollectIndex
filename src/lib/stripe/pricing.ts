@@ -59,6 +59,29 @@ export const PRICING_TIERS = {
             apiRequestsPerDay: 10000,
             portfolioCards: Infinity
         }
+    },
+    enterprise: {
+        id: 'enterprise',
+        name: 'Enterprise',
+        price: 99900, // 999€ in cents (custom pricing, contact sales)
+        priceId: process.env.STRIPE_PRICE_ENTERPRISE || 'price_enterprise',
+        features: [
+            'Tout Pro +',
+            'Multi-user teams',
+            'Role-based access control',
+            'SSO / SAML',
+            'Audit logs',
+            'Custom API limits',
+            'Dedicated support',
+            'SLA garanti',
+            'Onboarding personnalisé'
+        ],
+        limits: {
+            analysesPerMonth: Infinity,
+            alertsMax: Infinity,
+            apiRequestsPerDay: Infinity,
+            portfolioCards: Infinity
+        }
     }
 } as const
 
