@@ -114,6 +114,42 @@ export default function CardDetailPage() {
         fetchCard()
     }, [cardId])
 
+    // ML Prediction Effect
+    useEffect(() => {
+        if (!priceHistory.length) return
+
+        async function fetchMLPrediction() {
+            // Dynamic import to avoid SSR issues if backend specific code leaks
+            const { predictRebond } = await import('@/lib/ml/prediction')
+
+            // Format data for ML [Price, Volume]
+            // Mocking volume for now as 0-100 random if not present
+            const recentData = priceHistory.slice(-30).map(p => ({
+                price: p.price,
+                volume: Math.random() * 1000 // Mock volume
+            }))
+
+            if (recentData.length >= 30) {
+                const mlProbability = await predictRebond(recentData)
+                if (mlProbability !== null) {
+                    setTechnicals(prev => {
+                        if (!prev) return null
+                        return { ...prev, mlScore: mlProbability * 100 }
+                    })
+                    // Re-calculate Rebond Score with ML
+                    setTechnicals(prev => {
+                        if (!prev) return null
+                        const newRebond = calculateRebondScore({ ...prev, mlScore: mlProbability * 100 })
+                        setRebondScore(newRebond)
+                        return { ...prev, mlScore: mlProbability * 100 }
+                    })
+                }
+            }
+        }
+
+        fetchMLPrediction() // Activate ML predictions
+    }, [priceHistory])
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-96">
@@ -305,9 +341,9 @@ export default function CardDetailPage() {
                                     <p className="text-sm text-white/60 mt-1">Confiance: {Math.round(rebondScore.confidence * 100)}%</p>
                                 </div>
                                 <div className={`px-4 py-2 rounded-xl font-bold ${rebondScore.recommendation === 'strong_buy' ? 'bg-white/20 text-white' :
-                                        rebondScore.recommendation === 'buy' ? 'bg-white/15 text-white/90' :
-                                            rebondScore.recommendation === 'hold' ? 'bg-white/10 text-white/70' :
-                                                'bg-white/5 text-white/50'
+                                    rebondScore.recommendation === 'buy' ? 'bg-white/15 text-white/90' :
+                                        rebondScore.recommendation === 'hold' ? 'bg-white/10 text-white/70' :
+                                            'bg-white/5 text-white/50'
                                     }`}>
                                     {rebondScore.recommendation === 'strong_buy' ? 'ACHAT FORT' :
                                         rebondScore.recommendation === 'buy' ? 'ACHAT' :
@@ -329,7 +365,7 @@ export default function CardDetailPage() {
                                         )}
                                     </div>
                                     <p className={`text-2xl font-bold ${technicals.rsi14 < 30 ? 'text-white' :
-                                            technicals.rsi14 > 70 ? 'text-white/50' : 'text-white/80'
+                                        technicals.rsi14 > 70 ? 'text-white/50' : 'text-white/80'
                                         }`}>
                                         {technicals.rsi14.toFixed(1)}
                                     </p>

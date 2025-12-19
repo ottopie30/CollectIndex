@@ -8,6 +8,7 @@ import { getScoreColor } from '@/lib/utils'
 import { getMultilingualSearchTerms, translateSearchQuery } from '@/lib/translations'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useI18n } from '@/lib/i18n/provider'
 
 // Mock function to generate random scores (will be replaced by real scoring)
 function generateMockScore(cardId: string): number {
@@ -16,6 +17,7 @@ function generateMockScore(cardId: string): number {
 }
 
 export default function CardsPage() {
+    const { t } = useI18n()
     const [query, setQuery] = useState('')
     const [cards, setCards] = useState<TCGdexCard[]>([])
     const [isLoading, setIsLoading] = useState(false)
@@ -77,8 +79,8 @@ export default function CardsPage() {
             {/* Page header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Recherche de Cartes</h1>
-                    <p className="text-white/50 mt-1">Analysez le score de spéculation de n&apos;importe quelle carte</p>
+                    <h1 className="text-3xl font-bold text-white">{t('cards.title')}</h1>
+                    <p className="text-white/50 mt-1">{t('cards.startSearchDesc')}</p>
                 </div>
             </div>
 
@@ -89,7 +91,7 @@ export default function CardsPage() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                     <input
                         type="text"
-                        placeholder="Rechercher une carte (FR ou EN: Dracaufeu, Charizard...)"
+                        placeholder={t('cards.searchPlaceholder')}
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all"
@@ -104,7 +106,7 @@ export default function CardsPage() {
                 <div className="flex gap-2">
                     <button className="flex items-center gap-2 px-4 py-3 glass rounded-xl hover:bg-white/10 transition-all text-white/70 hover:text-white">
                         <SlidersHorizontal className="w-5 h-5" />
-                        <span>Filtres</span>
+                        <span>{t('cards.filters')}</span>
                     </button>
 
                     {/* View mode toggle */}
@@ -128,7 +130,10 @@ export default function CardsPage() {
             {/* Results count */}
             {cards.length > 0 && (
                 <p className="text-sm text-white/50">
-                    {cards.length} résultat{cards.length > 1 ? 's' : ''} trouvé{cards.length > 1 ? 's' : ''}
+                    {t('cards.resultsCount', {
+                        count: cards.length.toString(),
+                        s: cards.length > 1 ? 's' : ''
+                    })}
                 </p>
             )}
 
@@ -236,14 +241,14 @@ export default function CardsPage() {
                 )
             ) : query.length >= 2 && !isLoading ? (
                 <div className="text-center py-12">
-                    <p className="text-white/50">Aucune carte trouvée pour &quot;{query}&quot;</p>
+                    <p className="text-white/50">{t('cards.noResults', { query })}</p>
                 </div>
             ) : query.length < 2 ? (
                 <div className="text-center py-12 glass rounded-2xl">
                     <Search className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-white mb-2">Commencez votre recherche</h3>
+                    <h3 className="text-xl font-semibold text-white mb-2">{t('cards.startSearch')}</h3>
                     <p className="text-white/50">
-                        Tapez le nom d&apos;une carte Pokémon pour analyser son score de spéculation
+                        {t('cards.startSearchDesc')}
                     </p>
                 </div>
             ) : null}

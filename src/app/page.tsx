@@ -11,8 +11,30 @@ import {
     CheckCircle2,
     Sparkles
 } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/provider'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function LandingPage() {
+    const { t } = useI18n()
+    const router = useRouter()
+
+    // Redirect authenticated users to dashboard
+    useEffect(() => {
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth/session')
+                const data = await res.json()
+                if (data.user) {
+                    router.push('/dashboard')
+                }
+            } catch (e) {
+                // User not authenticated, stay on landing
+            }
+        }
+        checkAuth()
+    }, [router])
+
     return (
         <div className="min-h-screen bg-black">
             {/* Navigation */}
@@ -58,19 +80,19 @@ export default function LandingPage() {
                             {/* Badge */}
                             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-full text-white/80 text-sm mb-8">
                                 <Sparkles className="w-4 h-4" />
-                                <span>Intelligence d&apos;investissement Pokémon</span>
+                                <span>{t('landing.hero.badge')}</span>
                             </div>
 
                             {/* Headline */}
                             <h1 className="text-5xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-                                Investissez en
-                                <span className="text-white/60"> confiance </span>
-                                dans les cartes Pokémon
+                                {t('landing.hero.title')}
+                                <span className="text-white/60"> {t('landing.hero.titleHighlight')} </span>
+                                {t('landing.hero.titleSuffix')}
                             </h1>
 
                             {/* Subheadline */}
                             <p className="text-xl text-white/50 mb-8 max-w-xl mx-auto lg:mx-0">
-                                Notre algorithme de scoring 5D analyse chaque carte pour distinguer les opportunités d&apos;investissement solides de la pure spéculation.
+                                {t('landing.hero.subtitle')}
                             </p>
 
                             {/* CTA Buttons */}
@@ -79,14 +101,14 @@ export default function LandingPage() {
                                     href="/cards"
                                     className="group px-8 py-4 bg-white text-black rounded-full font-semibold text-lg hover:bg-white/90 transition-colors flex items-center gap-2"
                                 >
-                                    Commencer gratuitement
+                                    {t('landing.hero.cta')}
                                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                 </Link>
                                 <a
                                     href="#features"
                                     className="px-8 py-4 text-white/70 hover:text-white transition-colors font-medium"
                                 >
-                                    Découvrir les features →
+                                    {t('landing.hero.features')} →
                                 </a>
                             </div>
 
@@ -94,12 +116,12 @@ export default function LandingPage() {
                             <div className="mt-12 flex items-center gap-8 justify-center lg:justify-start">
                                 <div className="text-center">
                                     <div className="text-2xl font-bold text-white">500+</div>
-                                    <div className="text-sm text-white/50">Cartes analysées</div>
+                                    <div className="text-sm text-white/50">{t('landing.stats.analyzed')}</div>
                                 </div>
                                 <div className="w-px h-10 bg-white/20" />
                                 <div className="text-center">
                                     <div className="text-2xl font-bold text-white">5D</div>
-                                    <div className="text-sm text-white/50">Score de spéculation</div>
+                                    <div className="text-sm text-white/50">{t('landing.stats.score')}</div>
                                 </div>
                                 <div className="w-px h-10 bg-white/20" />
                                 <div className="text-center">
@@ -108,7 +130,7 @@ export default function LandingPage() {
                                             <Star key={i} className="w-4 h-4 fill-white text-white" />
                                         ))}
                                     </div>
-                                    <div className="text-sm text-white/50">Avis utilisateurs</div>
+                                    <div className="text-sm text-white/50">{t('landing.stats.reviews')}</div>
                                 </div>
                             </div>
                         </div>
@@ -173,10 +195,10 @@ export default function LandingPage() {
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold text-white mb-4">
-                            Scoring 5D: Votre avantage compétitif
+                            {t('landing.features.title')}
                         </h2>
                         <p className="text-xl text-white/50 max-w-2xl mx-auto">
-                            Notre algorithme propriétaire analyse 5 dimensions clés pour évaluer le risque spéculatif de chaque carte.
+                            {t('landing.features.subtitle')}
                         </p>
                     </div>
 
@@ -184,33 +206,33 @@ export default function LandingPage() {
                         {[
                             {
                                 icon: TrendingUp,
-                                title: 'D1: Volatilité',
-                                description: 'Analyse la variation des prix pour détecter les mouvements anormaux.',
+                                title: `D1: ${t('landing.features.volatility')}`,
+                                description: t('landing.features.volatilityDesc'),
                             },
                             {
                                 icon: Zap,
-                                title: 'D2: Croissance',
-                                description: 'Identifie les rendements excessifs par rapport au benchmark marché.',
+                                title: `D2: ${t('landing.features.growth')}`,
+                                description: t('landing.features.growthDesc'),
                             },
                             {
                                 icon: Star,
-                                title: 'D3: Rareté',
-                                description: 'Évalue la vraie rareté basée sur population PSA et offre/demande.',
+                                title: `D3: ${t('landing.features.rarity')}`,
+                                description: t('landing.features.rarityDesc'),
                             },
                             {
                                 icon: BarChart3,
-                                title: 'D4: Sentiment',
-                                description: 'Mesure le buzz social et la hype pour anticiper les corrections.',
+                                title: `D4: ${t('landing.features.sentiment')}`,
+                                description: t('landing.features.sentimentDesc'),
                             },
                             {
                                 icon: Shield,
-                                title: 'D5: Macro',
-                                description: 'Corrélation avec crypto, Fear & Greed Index, saisonnalité.',
+                                title: `D5: ${t('landing.features.macro')}`,
+                                description: t('landing.features.macroDesc'),
                             },
                             {
                                 icon: CheckCircle2,
-                                title: 'Score Total',
-                                description: "Synthèse pondérée pour une décision d'investissement éclairée.",
+                                title: t('landing.features.total'),
+                                description: t('landing.features.totalDesc'),
                             },
                         ].map((feature, i) => (
                             <div
@@ -233,25 +255,25 @@ export default function LandingPage() {
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16">
                         <h2 className="text-4xl font-bold text-white mb-4">
-                            Tarifs simples et transparents
+                            {t('landing.pricing.title')}
                         </h2>
                         <p className="text-xl text-white/50">
-                            Commencez gratuitement, passez Pro quand vous êtes prêt.
+                            {t('landing.pricing.subtitle')}
                         </p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8">
                         {/* Free Plan */}
                         <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10">
-                            <div className="text-sm text-white/50 mb-2">Gratuit</div>
-                            <div className="text-4xl font-bold text-white mb-6">0€<span className="text-lg font-normal text-white/50">/mois</span></div>
+                            <div className="text-sm text-white/50 mb-2">{t('pricing.free.name')}</div>
+                            <div className="text-4xl font-bold text-white mb-6">0€<span className="text-lg font-normal text-white/50">{t('pricing.free.period')}</span></div>
 
                             <ul className="space-y-4 mb-8">
                                 {[
-                                    'Recherche de cartes illimitée',
-                                    'Score de spéculation 5D',
-                                    'Graphiques de prix',
-                                    'Top 50 cartes tendances',
+                                    t('landing.pricing.features.unlimitedSearch'),
+                                    t('landing.pricing.features.scoring'),
+                                    t('landing.pricing.features.charts'),
+                                    t('landing.pricing.features.trends'),
                                 ].map((item, i) => (
                                     <li key={i} className="flex items-center gap-3 text-white/80">
                                         <CheckCircle2 className="w-5 h-5 text-white/60 shrink-0" />
@@ -264,27 +286,27 @@ export default function LandingPage() {
                                 href="/cards"
                                 className="block w-full py-3 text-center bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
                             >
-                                Commencer gratuitement
+                                {t('landing.hero.cta')}
                             </Link>
                         </div>
 
                         {/* Pro Plan */}
                         <div className="relative bg-white/5 backdrop-blur-xl rounded-3xl p-8 border-2 border-white/30">
                             <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-white rounded-full text-black text-sm font-medium">
-                                Populaire
+                                {t('landing.pricing.popular')}
                             </div>
 
-                            <div className="text-sm text-white/70 mb-2">Pro</div>
-                            <div className="text-4xl font-bold text-white mb-6">9€<span className="text-lg font-normal text-white/50">/mois</span></div>
+                            <div className="text-sm text-white/70 mb-2">{t('pricing.pro.name')}</div>
+                            <div className="text-4xl font-bold text-white mb-6">9€<span className="text-lg font-normal text-white/50">{t('pricing.pro.period')}</span></div>
 
                             <ul className="space-y-4 mb-8">
                                 {[
-                                    'Tout du plan Gratuit',
-                                    'Alertes prix et corrections',
-                                    'Portfolio illimité',
-                                    'Historique de prix complet',
-                                    'Export données CSV',
-                                    'Support prioritaire',
+                                    t('landing.pricing.features.unlimitedSearch'),
+                                    t('landing.pricing.features.alerts'),
+                                    t('landing.pricing.features.portfolio'),
+                                    t('landing.pricing.features.history'),
+                                    t('landing.pricing.features.export'),
+                                    t('landing.pricing.features.support'),
                                 ].map((item, i) => (
                                     <li key={i} className="flex items-center gap-3 text-white/80">
                                         <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
@@ -296,7 +318,7 @@ export default function LandingPage() {
                             <button
                                 className="block w-full py-3 text-center bg-white hover:bg-white/90 text-black rounded-xl font-medium transition-colors"
                             >
-                                Bientôt disponible
+                                {t('landing.pricing.soon')}
                             </button>
                         </div>
                     </div>
@@ -308,16 +330,16 @@ export default function LandingPage() {
                 <div className="max-w-4xl mx-auto text-center">
                     <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-12 border border-white/10">
                         <h2 className="text-4xl font-bold text-white mb-4">
-                            Prêt à investir intelligemment ?
+                            {t('landing.cta.title')}
                         </h2>
                         <p className="text-xl text-white/50 mb-8">
-                            Rejoignez les investisseurs qui utilisent Altum Analytics pour distinguer les opportunités de la spéculation.
+                            {t('landing.cta.subtitle')}
                         </p>
                         <Link
                             href="/cards"
                             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black rounded-full font-semibold text-lg hover:bg-white/90 transition-colors"
                         >
-                            Analyser ma première carte
+                            {t('landing.cta.button')}
                             <ArrowRight className="w-5 h-5" />
                         </Link>
                     </div>
@@ -335,13 +357,13 @@ export default function LandingPage() {
                     </div>
 
                     <div className="text-white/50 text-sm">
-                        © 2024 Altum Analytics. Tous droits réservés.
+                        {t('footer.copyright')}
                     </div>
 
                     <div className="flex items-center gap-6">
-                        <a href="#" className="text-white/50 hover:text-white transition-colors text-sm">Mentions légales</a>
-                        <a href="#" className="text-white/50 hover:text-white transition-colors text-sm">Confidentialité</a>
-                        <a href="#" className="text-white/50 hover:text-white transition-colors text-sm">Contact</a>
+                        <a href="#" className="text-white/50 hover:text-white transition-colors text-sm">{t('footer.terms')}</a>
+                        <a href="#" className="text-white/50 hover:text-white transition-colors text-sm">{t('footer.privacy')}</a>
+                        <a href="#" className="text-white/50 hover:text-white transition-colors text-sm">{t('footer.contact')}</a>
                     </div>
                 </div>
             </footer>

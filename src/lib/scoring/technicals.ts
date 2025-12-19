@@ -14,6 +14,7 @@ export type TechnicalIndicators = {
     isOversold: boolean
     isVolumeSpiking: boolean
     isMACDBullish: boolean
+    mlScore?: number // 0-100 from LSTM
 }
 
 export type RebondScore = {
@@ -23,8 +24,10 @@ export type RebondScore = {
         rsi: 'oversold' | 'neutral' | 'overbought'
         macd: 'bullish' | 'neutral' | 'bearish'
         volume: 'spiking' | 'normal' | 'low'
+        ml?: 'bullish' | 'neutral' | 'bearish'
     }
     recommendation: 'strong_buy' | 'buy' | 'hold' | 'sell' | 'strong_sell'
+    mlContribution?: number
 }
 
 // Calculate RSI (Relative Strength Index)
@@ -164,72 +167,94 @@ export function calculateTechnicalIndicators(
 }
 
 // Calculate Rebond Score
-// Combines RSI, MACD, and Volume to predict bounce probability
+// Combines RSI, MACD, Volume AND optional ML Score
 export function calculateRebondScore(indicators: TechnicalIndicators): RebondScore {
-    let score = 0
+    let technicalScore = 0
     let confidence = 0
 
     // RSI signal (0-35 points)
     let rsiSignal: 'oversold' | 'neutral' | 'overbought' = 'neutral'
     if (indicators.rsi14 < 30) {
-        score += 35
+        technicalScore += 35
         confidence += 0.3
         rsiSignal = 'oversold'
     } else if (indicators.rsi14 < 40) {
-        score += 20
+        technicalScore += 20
         confidence += 0.15
     } else if (indicators.rsi14 > 70) {
-        score -= 15
+        technicalScore -= 15
         rsiSignal = 'overbought'
     }
 
     // MACD signal (0-35 points)
     let macdSignal: 'bullish' | 'neutral' | 'bearish' = 'neutral'
     if (indicators.isMACDBullish) {
-        score += 35
+        technicalScore += 35
         confidence += 0.35
         macdSignal = 'bullish'
     } else if (indicators.macd.histogram < 0 && indicators.macd.macdLine < indicators.macd.signalLine) {
-        score -= 10
+        technicalScore -= 10
         macdSignal = 'bearish'
     }
 
     // Volume signal (0-30 points)
     let volumeSignal: 'spiking' | 'normal' | 'low' = 'normal'
     if (indicators.isVolumeSpiking) {
-        score += 30
+        technicalScore += 30
         confidence += 0.25
         volumeSignal = 'spiking'
     } else if (indicators.volumeRatio < 0.5) {
         volumeSignal = 'low'
     }
 
-    // Normalize score to 0-100
-    score = Math.max(0, Math.min(100, score))
+    // Normalize technical score to 0-100
+    technicalScore = Math.max(0, Math.min(100, technicalScore))
+
+    // Final Score Calculation (Ensemble)
+    let finalScore = technicalScore
+    let mlSignal: 'bullish' | 'neutral' | 'bearish' | undefined
+
+    if (indicators.mlScore !== undefined) {
+        // Ensemble Method: 70% Technical + 30% ML
+        finalScore = (technicalScore * 0.7) + (indicators.mlScore * 0.3)
+        // Boost confidence if both agree
+        if ((technicalScore > 60 && indicators.mlScore > 60) || (technicalScore < 40 && indicators.mlScore < 40)) {
+            confidence += 0.15
+        }
+
+        if (indicators.mlScore > 60) mlSignal = 'bullish'
+        else if (indicators.mlScore < 40) mlSignal = 'bearish'
+        else mlSignal = 'neutral'
+    }
+
+    // Cap Score and Confidence
+    finalScore = Math.max(0, Math.min(100, finalScore))
     confidence = Math.max(0, Math.min(1, confidence))
 
     // Determine recommendation
     let recommendation: RebondScore['recommendation']
-    if (score >= 80) {
+    if (finalScore >= 80) {
         recommendation = 'strong_buy'
-    } else if (score >= 60) {
+    } else if (finalScore >= 60) {
         recommendation = 'buy'
-    } else if (score >= 40) {
+    } else if (finalScore >= 40) {
         recommendation = 'hold'
-    } else if (score >= 20) {
+    } else if (finalScore >= 20) {
         recommendation = 'sell'
     } else {
         recommendation = 'strong_sell'
     }
 
     return {
-        score,
+        score: Math.round(finalScore),
         confidence,
         signals: {
             rsi: rsiSignal,
             macd: macdSignal,
-            volume: volumeSignal
+            volume: volumeSignal,
+            ml: mlSignal
         },
-        recommendation
+        recommendation,
+        mlContribution: indicators.mlScore
     }
 }

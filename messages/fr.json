@@ -22,26 +22,67 @@
     "dashboard": {
         "title": "Tableau de bord",
         "marketOverview": "Vue d'ensemble du marché",
-        "topPerformers": "Meilleures performances",
-        "recentActivity": "Activité récente",
-        "portfolioValue": "Valeur du portfolio",
-        "totalReturn": "Rendement total"
+        "marketHealth": "Santé du marché",
+        "stats": {
+            "vintageIndex": "Indice Vintage",
+            "modernIndex": "Indice Moderne",
+            "speculationSentiment": "Sentiment Spéculation",
+            "correctionProbability": "Prob. Correction"
+        },
+        "trending": {
+            "title": "Cartes Tendances",
+            "viewAll": "Voir tout"
+        },
+        "alerts": {
+            "title": "Alertes",
+            "manage": "Gérer",
+            "critical": "CRITIQUE",
+            "warning": "ATTENTION",
+            "opportunity": "OPPORTUNITÉ"
+        },
+        "quickStats": {
+            "btcCorrelation": "Corr. Bitcoin",
+            "fearGreed": "Fear & Greed"
+        },
+        "cta": {
+            "title": "Analysez votre portefeuille",
+            "subtitle": "Importez vos cartes et obtenez un score de spéculation global, des recommandations de rééquilibrage et des alertes personnalisées.",
+            "button": "Commencer"
+        }
     },
     "cards": {
         "title": "Recherche de cartes",
         "searchPlaceholder": "Rechercher une carte (FR ou EN: Charizard, Dracaufeu...)",
-        "noResults": "Aucune carte trouvée",
+        "noResults": "Aucune carte trouvée pour \"{query}\"",
         "speculationScore": "Score de spéculation",
         "rebondScore": "Score de rebond",
         "price": "Prix",
-        "rarity": "Rareté"
+        "rarity": "Rareté",
+        "filters": "Filtres",
+        "resultsCount": "{count} résultat{s} trouvé{s}",
+        "startSearch": "Commencez votre recherche",
+        "startSearchDesc": "Tapez le nom d'une carte Pokémon pour analyser son score de spéculation",
+        "unknownSet": "Set inconnu"
     },
     "portfolio": {
         "title": "Mon Portfolio",
+        "subtitle": "Gérez votre collection de cartes Pokémon",
         "addCard": "Ajouter une carte",
-        "totalValue": "Valeur totale",
+        "totalValue": "Valeur Totale",
+        "pnl": "Plus/Moins Value",
+        "sincePurchase": "depuis l'achat",
+        "cards": "Cartes",
+        "uniqueCards": "{count} cartes uniques",
+        "averageScore": "Score Moyen",
+        "scoreLabel": {
+            "solid": "Investissement Solide",
+            "mixed": "Zone Mixte",
+            "risky": "Risque Élevé"
+        },
+        "myCards": "Mes Cartes",
+        "empty": "Votre portfolio est vide",
+        "addFirst": "Ajouter votre première carte",
         "cardCount": "{count} cartes",
-        "averageScore": "Score moyen",
         "performance": "Performance",
         "composition": "Composition"
     },
@@ -89,5 +130,59 @@
         "privacy": "Politique de confidentialité",
         "terms": "Conditions d'utilisation",
         "contact": "Contact"
+    },
+    "landing": {
+        "hero": {
+            "badge": "Intelligence d'investissement Pokémon",
+            "title": "Investissez en ",
+            "titleHighlight": "confiance",
+            "titleSuffix": " dans les cartes Pokémon",
+            "subtitle": "Notre algorithme de scoring 5D analyse chaque carte pour distinguer les opportunités d'investissement solides de la pure spéculation.",
+            "cta": "Commencer gratuitement",
+            "features": "Découvrir les features"
+        },
+        "stats": {
+            "analyzed": "Cartes analysées",
+            "score": "Score de spéculation",
+            "reviews": "Avis utilisateurs"
+        },
+        "features": {
+            "title": "Scoring 5D: Votre avantage compétitif",
+            "subtitle": "Notre algorithme propriétaire analyse 5 dimensions clés pour évaluer le risque spéculatif de chaque carte.",
+            "volatility": "Volatilité",
+            "volatilityDesc": "Analyse la variation des prix pour détecter les mouvements anormaux.",
+            "growth": "Croissance",
+            "growthDesc": "Identifie les rendements excessifs par rapport au benchmark marché.",
+            "rarity": "Rareté",
+            "rarityDesc": "Évalue la vraie rareté basée sur population PSA et offre/demande.",
+            "sentiment": "Sentiment",
+            "sentimentDesc": "Mesure le buzz social et la hype pour anticiper les corrections.",
+            "macro": "Macro",
+            "macroDesc": "Corrélation avec crypto, Fear & Greed Index, saisonnalité.",
+            "total": "Score Total",
+            "totalDesc": "Synthèse pondérée pour une décision d'investissement éclairée."
+        },
+        "pricing": {
+            "title": "Tarifs simples et transparents",
+            "subtitle": "Commencez gratuitement, passez Pro quand vous êtes prêt.",
+            "popular": "Populaire",
+            "soon": "Bientôt disponible",
+            "features": {
+                "unlimitedSearch": "Recherche de cartes illimitée",
+                "scoring": "Score de spéculation 5D",
+                "charts": "Graphiques de prix",
+                "trends": "Top 50 cartes tendances",
+                "alerts": "Alertes prix et corrections",
+                "portfolio": "Portfolio illimité",
+                "history": "Historique de prix complet",
+                "export": "Export données CSV",
+                "support": "Support prioritaire"
+            }
+        },
+        "cta": {
+            "title": "Prêt à investir intelligemment ?",
+            "subtitle": "Rejoignez les investisseurs qui utilisent Altum Analytics pour distinguer les opportunités de la spéculation.",
+            "button": "Analyser ma première carte"
+        }
     }
 }

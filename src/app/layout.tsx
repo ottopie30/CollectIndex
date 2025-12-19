@@ -4,6 +4,8 @@ import "./globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { Analytics } from "@/components/analytics/Analytics";
+import { I18nProvider } from "@/lib/i18n/provider";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -40,19 +42,23 @@ export default function RootLayout({
   return (
     <html lang="fr" className="dark">
       <body className={`${inter.variable} antialiased bg-gradient-animated min-h-screen`}>
-        <Analytics />
-        <div className="flex min-h-screen">
-          {/* Sidebar */}
-          <Sidebar />
+        <I18nProvider>
+          <ToastProvider>
+            <Analytics />
+            <div className="flex min-h-screen">
+              {/* Sidebar */}
+              <Sidebar />
 
-          {/* Main content */}
-          <div className="flex-1 ml-64 flex flex-col">
-            <Header />
-            <main className="flex-1 p-6 overflow-auto">
-              {children}
-            </main>
-          </div>
-        </div>
+              {/* Main content */}
+              <div className="flex-1 md:ml-64 flex flex-col">
+                <Header />
+                <main className="flex-1 p-4 md:p-6 overflow-auto">
+                  {children}
+                </main>
+              </div>
+            </div>
+          </ToastProvider>
+        </I18nProvider>
       </body>
     </html>
   );

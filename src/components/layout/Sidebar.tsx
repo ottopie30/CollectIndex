@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
     LayoutDashboard,
@@ -9,102 +8,132 @@ import {
     Wallet,
     Bell,
     Settings,
-    TrendingUp,
     BarChart3,
-    ChevronLeft,
-    ChevronRight
+    Menu,
+    X
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useState } from 'react'
-
-const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Recherche', href: '/cards', icon: Search },
-    { name: 'Portfolio', href: '/portfolio', icon: Wallet },
-    { name: 'Analyses', href: '/analytics', icon: BarChart3 },
-    { name: 'Alertes', href: '/alerts', icon: Bell },
-    { name: 'Paramètres', href: '/settings', icon: Settings },
-]
+import { useI18n } from '@/lib/i18n/provider'
+import { useState, useEffect } from 'react'
 
 export function Sidebar() {
+    const { t } = useI18n()
     const pathname = usePathname()
-    const [collapsed, setCollapsed] = useState(false)
+    const [isMobileOpen, setIsMobileOpen] = useState(false)
 
-    return (
-        <aside className={cn(
-            "fixed left-0 top-0 h-full bg-black/80 backdrop-blur-2xl border-r border-white/10 transition-all duration-300 z-40",
-            collapsed ? "w-20" : "w-64"
-        )}>
+    // Close mobile menu on route change
+    useEffect(() => {
+        setIsMobileOpen(false)
+    }, [pathname])
+
+    // Close on escape key
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isMobileOpen) {
+                setIsMobileOpen(false)
+            }
+        }
+        window.addEventListener('keydown', handleEscape)
+        return () => window.removeEventListener('keydown', handleEscape)
+    }, [isMobileOpen])
+
+    const navItems = [
+        { icon: LayoutDashboard, label: t('nav.dashboard'), href: '/dashboard' },
+        { icon: Search, label: t('nav.cards'), href: '/cards' },
+        { icon: Wallet, label: t('nav.portfolio'), href: '/portfolio' },
+        { icon: Bell, label: t('nav.alerts'), href: '/alerts' },
+        { icon: Settings, label: t('nav.settings'), href: '/settings' },
+    ]
+
+    const SidebarContent = () => (
+        <>
             {/* Logo */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
-                {!collapsed && (
-                    <Link href="/" className="flex items-center gap-2">
-                        <Image
-                            src="/logo.png"
-                            alt="Altum Analytics Logo"
-                            width={40}
-                            height={40}
-                            className="rounded-xl"
-                        />
-                        <div>
-                            <h1 className="font-bold text-white">Altum</h1>
-                            <p className="text-xs text-white/50">Analytics</p>
-                        </div>
-                    </Link>
-                )}
-                {collapsed && (
-                    <Image
-                        src="/logo.png"
-                        alt="Altum Analytics Logo"
-                        width={40}
-                        height={40}
-                        className="mx-auto rounded-xl"
-                    />
-                )}
+            <div className="p-6 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center">
+                        <BarChart3 className="w-6 h-6 text-black" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-white">Altum</h1>
+                        <p className="text-xs text-white/50">Analytics</p>
+                    </div>
+                </div>
             </div>
 
             {/* Navigation */}
-            <nav className="p-4 space-y-2">
-                {navigation.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            className={cn(
-                                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
-                                isActive
-                                    ? "bg-white text-black"
-                                    : "text-white/60 hover:text-white hover:bg-white/10"
-                            )}
-                        >
-                            <item.icon className="w-5 h-5" />
-                            {!collapsed && <span className="font-medium">{item.name}</span>}
-                        </Link>
-                    )
-                })}
+            <nav className="flex-1 p-4">
+                <div className="space-y-1">
+                    {navItems.map((item) => {
+                        const Icon = item.icon
+                        const isActive = pathname === item.href
+
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`
+                                    flex items-center gap-3 px-4 py-3 rounded-xl transition-all
+                                    ${isActive
+                                        ? 'bg-white/10 text-white border border-white/20'
+                                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                                    }
+                                `}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span className="font-medium">{item.label}</span>
+                            </Link>
+                        )
+                    })}
+                </div>
             </nav>
 
-            {/* Collapse button */}
+            {/* Footer */}
+            <div className="p-4 border-t border-white/10">
+                <div className="p-4 bg-white/5 rounded-xl">
+                    <p className="text-sm font-medium text-white">Pro Plan</p>
+                    <p className="text-xs text-white/50 mt-1">Unlimited access</p>
+                </div>
+            </div>
+        </>
+    )
+
+    return (
+        <>
+            {/* Mobile Menu Button */}
             <button
-                onClick={() => setCollapsed(!collapsed)}
-                className="absolute -right-3 top-20 w-6 h-6 bg-white rounded-full flex items-center justify-center text-black hover:bg-white/80 transition-colors"
+                onClick={() => setIsMobileOpen(true)}
+                className="md:hidden fixed top-4 left-4 z-50 p-2 bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl text-white hover:bg-white/10 transition-all"
             >
-                {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                <Menu className="w-6 h-6" />
             </button>
 
-            {/* Bottom section */}
-            {!collapsed && (
-                <div className="absolute bottom-4 left-4 right-4">
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                        <h3 className="font-semibold text-white text-sm">Passez à Pro</h3>
-                        <p className="text-xs text-white/60 mt-1">Analyses illimitées et prédictions ML</p>
-                        <button className="mt-3 w-full py-2 bg-white rounded-lg text-sm font-medium text-black hover:bg-white/90 transition-all">
-                            Voir les offres
+            {/* Desktop Sidebar */}
+            <aside className="hidden md:flex w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-col fixed left-0 top-0 bottom-0">
+                <SidebarContent />
+            </aside>
+
+            {/* Mobile Drawer */}
+            {isMobileOpen && (
+                <>
+                    {/* Overlay */}
+                    <div
+                        className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                        onClick={() => setIsMobileOpen(false)}
+                    />
+
+                    {/* Drawer */}
+                    <aside className="md:hidden w-64 bg-black/95 backdrop-blur-xl border-r border-white/10 flex flex-col fixed left-0 top-0 bottom-0 z-50 animate-in slide-in-from-left duration-300">
+                        {/* Close button */}
+                        <button
+                            onClick={() => setIsMobileOpen(false)}
+                            className="absolute top-4 right-4 p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                        >
+                            <X className="w-5 h-5" />
                         </button>
-                    </div>
-                </div>
+
+                        <SidebarContent />
+                    </aside>
+                </>
             )}
-        </aside>
+        </>
     )
 }

@@ -14,6 +14,7 @@ import {
     Search,
     X
 } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/provider'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { getScoreColor, formatPrice } from '@/lib/utils'
 import { searchCards, TCGdexCard, getCardImageUrl } from '@/lib/tcgdex'
@@ -73,6 +74,7 @@ const mockPortfolio: PortfolioCard[] = [
 ]
 
 export default function PortfolioPage() {
+    const { t } = useI18n()
     const [portfolio, setPortfolio] = useState<PortfolioCard[]>(mockPortfolio)
     const [showAddModal, setShowAddModal] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -145,15 +147,15 @@ export default function PortfolioPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Mon Portfolio</h1>
-                    <p className="text-white/50 mt-1">Gérez votre collection de cartes Pokémon</p>
+                    <h1 className="text-3xl font-bold text-white">{t('portfolio.title')}</h1>
+                    <p className="text-white/50 mt-1">{t('portfolio.subtitle')}</p>
                 </div>
                 <button
                     onClick={() => setShowAddModal(true)}
                     className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
                 >
                     <Plus className="w-5 h-5" />
-                    Ajouter une carte
+                    {t('portfolio.addCard')}
                 </button>
             </div>
 
@@ -163,7 +165,7 @@ export default function PortfolioPage() {
                 <div className="glass rounded-2xl p-5">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-white/50">Valeur Totale</p>
+                            <p className="text-sm text-white/50">{t('portfolio.totalValue')}</p>
                             <p className="text-2xl font-bold text-white mt-1">{formatPrice(totalValue)}</p>
                         </div>
                         <div className="p-3 rounded-xl bg-white/20">
@@ -176,7 +178,7 @@ export default function PortfolioPage() {
                 <div className="glass rounded-2xl p-5">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-white/50">Plus/Moins Value</p>
+                            <p className="text-sm text-white/50">{t('portfolio.pnl')}</p>
                             <p className={`text-2xl font-bold mt-1 ${totalPnL >= 0 ? 'text-white' : 'text-white/60'}`}>
                                 {totalPnL >= 0 ? '+' : ''}{formatPrice(totalPnL)}
                             </p>
@@ -190,7 +192,7 @@ export default function PortfolioPage() {
                         </div>
                     </div>
                     <p className={`text-sm mt-2 ${pnlPercent >= 0 ? 'text-white' : 'text-white/60'}`}>
-                        {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}% depuis l&apos;achat
+                        {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}% {t('portfolio.sincePurchase')}
                     </p>
                 </div>
 
@@ -198,7 +200,7 @@ export default function PortfolioPage() {
                 <div className="glass rounded-2xl p-5">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-white/50">Cartes</p>
+                            <p className="text-sm text-white/50">{t('portfolio.cards')}</p>
                             <p className="text-2xl font-bold text-white mt-1">
                                 {portfolio.reduce((sum, c) => sum + c.quantity, 0)}
                             </p>
@@ -207,20 +209,20 @@ export default function PortfolioPage() {
                             <BarChart3 className="w-5 h-5 text-white" />
                         </div>
                     </div>
-                    <p className="text-sm text-white/40 mt-2">{portfolio.length} cartes uniques</p>
+                    <p className="text-sm text-white/40 mt-2">{t('portfolio.uniqueCards', { count: portfolio.length.toString() })}</p>
                 </div>
 
                 {/* Average Score */}
                 <div className="glass rounded-2xl p-5">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-sm text-white/50">Score Moyen</p>
+                            <p className="text-sm text-white/50">{t('portfolio.averageScore')}</p>
                             <p className={`text-2xl font-bold mt-1 ${avgScoreColors.text}`}>{avgScore}</p>
                         </div>
                         <ScoreGauge score={avgScore} size="sm" showLabel={false} />
                     </div>
                     <p className={`text-sm mt-2 ${avgScoreColors.text}`}>
-                        {avgScore < 30 ? 'Investissement Solide' : avgScore < 60 ? 'Zone Mixte' : 'Risque Élevé'}
+                        {avgScore < 30 ? t('portfolio.scoreLabel.solid') : avgScore < 60 ? t('portfolio.scoreLabel.mixed') : t('portfolio.scoreLabel.risky')}
                     </p>
                 </div>
             </div>
@@ -228,18 +230,18 @@ export default function PortfolioPage() {
             {/* Portfolio Table */}
             <div className="glass rounded-2xl overflow-hidden">
                 <div className="p-6 border-b border-white/10">
-                    <h2 className="text-xl font-semibold text-white">Mes Cartes</h2>
+                    <h2 className="text-xl font-semibold text-white">{t('portfolio.myCards')}</h2>
                 </div>
 
                 {portfolio.length === 0 ? (
                     <div className="p-12 text-center">
                         <Wallet className="w-12 h-12 text-white/20 mx-auto mb-4" />
-                        <p className="text-white/50">Votre portfolio est vide</p>
+                        <p className="text-white/50">{t('portfolio.empty')}</p>
                         <button
                             onClick={() => setShowAddModal(true)}
                             className="mt-4 px-4 py-2 bg-white/10 text-white rounded-lg font-medium hover:bg-white/20 transition-colors"
                         >
-                            Ajouter votre première carte
+                            {t('portfolio.addFirst')}
                         </button>
                     </div>
                 ) : (
