@@ -36,11 +36,10 @@ export function calculateCV(prices: number[]): number {
 }
 
 export function cvToScore(cv: number): number {
-    if (cv < 10) return 0
-    if (cv < 20) return 25
-    if (cv < 40) return 50
-    if (cv < 80) return 75
-    return 100
+    if (cv < 5) return 20   // Very stable
+    if (cv < 15) return 50  // Normal fluctuation
+    if (cv < 30) return 75  // Volatile
+    return 100              // Highly volatile
 }
 
 /**
@@ -64,10 +63,10 @@ export function calculatePTR(prices: number[]): number {
 }
 
 export function ptrToScore(ptr: number): number {
-    if (ptr < 100) return 0
-    if (ptr < 200) return 40
-    if (ptr < 300) return 60
-    return 80
+    if (ptr < 10) return 10
+    if (ptr < 30) return 40
+    if (ptr < 50) return 70
+    return 100
 }
 
 /**

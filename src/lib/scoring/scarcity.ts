@@ -51,6 +51,9 @@ export function getRarityScore(rarity: string | null | undefined): number {
     // Try partial match
     const lowerRarity = rarity.toLowerCase()
 
+    if (lowerRarity.includes('star') && !lowerRarity.includes('vstar')) return 90 // Gold Star
+    if (lowerRarity.includes('shining')) return 85
+    if (lowerRarity.includes(' ex') || lowerRarity.endsWith(' ex')) return 80 // Old school EX
     if (lowerRarity.includes('secret') || lowerRarity.includes('hyper')) return 75
     if (lowerRarity.includes('rainbow')) return 70
     if (lowerRarity.includes('ultra') || lowerRarity.includes('special art')) return 68
@@ -143,6 +146,8 @@ export function estimateSetYear(setId: string): number | null {
     if (setId.startsWith('sm')) return 2017  // Sun & Moon
     if (setId.startsWith('xy')) return 2014  // XY
     if (setId.startsWith('bw')) return 2011  // Black & White
+    if (setId.startsWith('hgss')) return 2010 // HeartGold SoulSilver
+    if (setId.startsWith('pl')) return 2009  // Platinum
     if (setId.startsWith('dp')) return 2007  // Diamond & Pearl
     if (setId.startsWith('ex')) return 2003  // EX Series
 

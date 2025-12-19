@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { getCard, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
 import { getCardWithPrices, getBestMarketPrice } from '@/lib/pokemontcg'
+import { estimateSetYear } from '@/lib/scoring/scarcity'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { getScoreColor, formatPrice } from '@/lib/utils'
@@ -141,6 +142,9 @@ export default function CardDetailPage() {
             const currentPrice = priceHistory[priceHistory.length - 1]?.price || 0
             const priceOneYearAgo = priceHistory[0]?.price || currentPrice
 
+            const setYear = estimateSetYear(card.set?.id || '')
+            const isVintage = (setYear || 2020) < 2011
+
             const score = calculateFullScore({
                 priceHistory: priceHistory.map(p => ({ price: p.price, date: new Date(p.date) })),
                 currentPrice,
@@ -148,7 +152,7 @@ export default function CardDetailPage() {
                 rarity: card.rarity,
                 setId: card.set?.id || '',
                 pokemonName: card.name,
-                isVintage: card.set?.id?.startsWith('base') || card.set?.id?.startsWith('neo')
+                isVintage
             })
             setFullScore(score)
 
@@ -490,24 +494,30 @@ export default function CardDetailPage() {
                             Recommandation
                         </h2>
 
-                        <div className={`p-4 rounded-xl ${score.total < 40 ? 'bg-white/20 border border-white/30' :
-                            score.total < 70 ? 'bg-white/10 border border-white/20' :
-                                'bg-white/5 border border-white/10'
+                        <div className={`p-4 rounded-xl border ${(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                ? 'bg-green-500/10 border-green-500/20'
+                                : score.total < 40
+                                    ? 'bg-blue-500/10 border-blue-500/20'
+                                    : 'bg-red-500/10 border-red-500/20'
                             }`}>
-                            <p className={`text-lg font-bold ${score.total < 40 ? 'text-white' :
-                                score.total < 70 ? 'text-white/80' :
-                                    'text-white/60'
+                            <p className={`text-lg font-bold ${(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                    ? 'text-green-400'
+                                    : score.total < 40
+                                        ? 'text-blue-400'
+                                        : 'text-red-400'
                                 }`}>
-                                {score.total < 40 ? 'ACHETER / CONSERVER' :
-                                    score.total < 70 ? 'SURVEILLER' :
-                                        'ÉVITER / VENDRE'}
+                                {(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                    ? 'OPPORTUNITÉ D\'ACHAT'
+                                    : score.total < 40
+                                        ? 'CONSERVER (LONG TERME)'
+                                        : 'VENDRE / ÉVITER'}
                             </p>
                             <p className="text-sm text-white/60 mt-2">
-                                {score.total < 40
-                                    ? `Cette carte présente un bon rapport risque/récompense. Prix d'entrée optimal autour de ${formatPrice(currentPrice * 0.9)}.`
-                                    : score.total < 70
-                                        ? 'Attendez une confirmation de tendance avant de prendre position. Potentielle correction à venir.'
-                                        : 'Le risque de perte est élevé. Si vous possédez cette carte, considérez de prendre vos profits.'}
+                                {(rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                    ? "Les indicateurs techniques signalent un momentum positif. C'est un bon point d'entrée."
+                                    : score.total < 40
+                                        ? "Fondamentaux solides et faible volatilité. Idéal pour une détention long terme en collection."
+                                        : "Risque de correction élevé ou tendance baissière. Prise de bénéfices conseillée."}
                             </p>
                         </div>
                     </div>
