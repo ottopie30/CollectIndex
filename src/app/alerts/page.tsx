@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -15,13 +15,20 @@ import {
     Search,
     ArrowUp,
     ArrowDown,
-    Clock
+    Clock,
+    Loader2
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
+import {
+    getUserAlerts,
+    createAlert as createAlertDb,
+    deleteAlert as deleteAlertDb,
+    toggleAlert as toggleAlertDb,
+    Alert as DbAlert,
+    AlertType
+} from '@/lib/alerts'
 
-// Alert types
-type AlertType = 'price_above' | 'price_below' | 'score_change' | 'pump_detected' | 'drop_detected'
-
+// Alert type for UI (mapped from DB)
 type Alert = {
     id: string
     cardId: string
@@ -36,73 +43,54 @@ type Alert = {
     active: boolean
 }
 
-// Mock alerts data
-const mockAlerts: Alert[] = [
-    {
-        id: '1',
-        cardId: 'base1-4',
-        cardName: 'Charizard',
-        cardImage: 'https://assets.tcgdex.net/en/base/base1/4/high.webp',
-        type: 'price_above',
-        threshold: 500,
-        currentValue: 420,
-        triggered: false,
-        createdAt: '2024-11-01',
-        active: true
-    },
-    {
-        id: '2',
-        cardId: 'swsh12pt5-160',
-        cardName: 'Pikachu VMAX',
-        cardImage: 'https://assets.tcgdex.net/en/swsh/swsh12pt5/160/high.webp',
-        type: 'pump_detected',
-        threshold: 20,
-        currentValue: 52,
-        triggered: true,
-        triggeredAt: '2024-12-15',
-        createdAt: '2024-10-15',
-        active: true
-    },
-    {
-        id: '3',
-        cardId: 'sv1-1',
-        cardName: 'Sprigatito',
-        cardImage: 'https://assets.tcgdex.net/en/sv/sv1/1/high.webp',
-        type: 'price_below',
-        threshold: 2,
-        currentValue: 3.5,
-        triggered: false,
-        createdAt: '2024-11-20',
-        active: true
-    },
-    {
-        id: '4',
-        cardId: 'neo1-9',
-        cardName: 'Lugia',
-        cardImage: 'https://assets.tcgdex.net/en/neo/neo1/9/high.webp',
-        type: 'drop_detected',
-        threshold: 15,
-        currentValue: 180,
-        triggered: true,
-        triggeredAt: '2024-12-10',
-        createdAt: '2024-09-01',
-        active: false
-    }
-]
-
 // Alert type config
 const alertTypeConfig: Record<AlertType, { label: string; icon: typeof TrendingUp; color: string; bgColor: string }> = {
     price_above: { label: 'Prix au-dessus', icon: ArrowUp, color: 'text-white', bgColor: 'bg-white/10' },
     price_below: { label: 'Prix en-dessous', icon: ArrowDown, color: 'text-white', bgColor: 'bg-white/10' },
     score_change: { label: 'Score change', icon: AlertTriangle, color: 'text-white', bgColor: 'bg-white/10' },
     pump_detected: { label: 'Pump détecté', icon: TrendingUp, color: 'text-white', bgColor: 'bg-white/10' },
-    drop_detected: { label: 'Drop détecté', icon: TrendingDown, color: 'text-white', bgColor: 'bg-white/10' }
+    drop_detected: { label: 'Drop détecté', icon: TrendingDown, color: 'text-white', bgColor: 'bg-white/10' },
+    correction: { label: 'Correction', icon: TrendingDown, color: 'text-white', bgColor: 'bg-white/10' },
+    rebound: { label: 'Rebond', icon: TrendingUp, color: 'text-white', bgColor: 'bg-white/10' }
 }
 
 export default function AlertsPage() {
-    const [alerts, setAlerts] = useState<Alert[]>(mockAlerts)
+    const [alerts, setAlerts] = useState<Alert[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [filter, setFilter] = useState<'all' | 'triggered' | 'active'>('all')
+
+    // Load alerts from Supabase
+    const loadAlerts = useCallback(async () => {
+        setIsLoading(true)
+        try {
+            const dbAlerts = await getUserAlerts()
+
+            // Map DB alerts to UI format
+            const uiAlerts: Alert[] = dbAlerts.map((a: DbAlert) => ({
+                id: a.id,
+                cardId: a.tcgdex_id,
+                cardName: a.card_name,
+                cardImage: a.card_image,
+                type: a.alert_type,
+                threshold: a.threshold_value,
+                currentValue: a.current_value,
+                triggered: a.triggered,
+                triggeredAt: a.triggered_at,
+                createdAt: a.created_at.split('T')[0],
+                active: a.is_active
+            }))
+            setAlerts(uiAlerts)
+        } catch (error) {
+            console.error('Error loading alerts:', error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        loadAlerts()
+    }, [loadAlerts])
 
     // Filter alerts
     const filteredAlerts = alerts.filter(alert => {
@@ -116,23 +104,40 @@ export default function AlertsPage() {
     const activeAlerts = alerts.filter(a => a.active).length
     const triggeredAlerts = alerts.filter(a => a.triggered).length
 
-    // Delete alert
-    const deleteAlert = (id: string) => {
-        setAlerts(alerts.filter(a => a.id !== id))
+    // Delete alert (with DB persistence)
+    const deleteAlert = async (id: string) => {
+        const success = await deleteAlertDb(id)
+        if (success) {
+            setAlerts(alerts.filter(a => a.id !== id))
+        }
     }
 
-    // Toggle alert active state
-    const toggleAlert = (id: string) => {
-        setAlerts(alerts.map(a =>
-            a.id === id ? { ...a, active: !a.active } : a
-        ))
+    // Toggle alert active state (with DB persistence)
+    const toggleAlert = async (id: string) => {
+        const alert = alerts.find(a => a.id === id)
+        if (!alert) return
+
+        const success = await toggleAlertDb(id, !alert.active)
+        if (success) {
+            setAlerts(alerts.map(a =>
+                a.id === id ? { ...a, active: !a.active } : a
+            ))
+        }
     }
 
-    // Mark as read
-    const markAsRead = (id: string) => {
+    // Mark as read (reset triggered status)
+    const markAsRead = async (id: string) => {
         setAlerts(alerts.map(a =>
             a.id === id ? { ...a, triggered: false, triggeredAt: undefined } : a
         ))
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
+            </div>
+        )
     }
 
     return (
