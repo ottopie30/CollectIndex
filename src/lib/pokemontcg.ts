@@ -116,7 +116,10 @@ export async function getCardWithPrices(cardId: string): Promise<PokemonTCGCard 
             { headers: getHeaders() }
         )
         if (!response.ok) {
-            console.error('Pokemon TCG API error:', response.status)
+            // 404 is expected for ID mismatches (triggers fallback)
+            if (response.status !== 404) {
+                console.error('Pokemon TCG API error:', response.status)
+            }
             return null
         }
         const data = await response.json()
