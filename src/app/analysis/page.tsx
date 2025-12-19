@@ -17,19 +17,19 @@ import {
     Brain,
     Globe,
     Trash2,
-    Info
+    Info,
+    Hash
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/provider'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { getScoreColor } from '@/lib/utils'
-import { searchCards, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
-import { searchCardsWithPrices, getBestMarketPrice } from '@/lib/pokemontcg'
+import { searchCards, getCardImageUrl, getCard, type TCGdexCard } from '@/lib/tcgdex'
+import { searchCardsWithPrices, getBestMarketPrice, getCardWithPrices } from '@/lib/pokemontcg'
 import { calculateQuickScore, type PricePoint } from '@/lib/scoring/speculationScore'
 import { getMacroScore } from '@/lib/data/macro'
 import { CardAnalysisModal } from '@/components/analysis/CardAnalysisModal'
 
 // Type for analyzed card
-// IMPORTANT: Exported so Modal can use it
 export type AnalyzedCard = {
     id: string
     tcgdexId: string
@@ -42,46 +42,52 @@ export type AnalyzedCard = {
     estimatedValue: number
     addedAt: Date
     analysisText: string
+    cardNumber: string // Added localId
 }
 
 // Generate price history for scoring
 function generatePriceHistory(baseValue: number, isVintage: boolean): PricePoint[] {
     const history: PricePoint[] = []
+    // Add some realistic variation
     let price = baseValue
 
     for (let i = 90; i >= 0; i--) {
         const date = new Date()
         date.setDate(date.getDate() - i)
-        // Vintage cards: more stable but can have spikes
         const volatility = isVintage ? 0.015 : 0.04
-        price = price * (1 + (Math.random() - 0.45) * volatility) // Slightly upward trend
+        // Random walk
+        price = price * (1 + (Math.random() - 0.48) * volatility)
         history.push({
             date: date.toISOString().split('T')[0],
-            price: Math.round(price * 100) / 100
+            price: Math.max(0, Math.round(price * 100) / 100)
         })
+    }
+    // Force last point to be current value
+    if (history.length > 0) {
+        history[history.length - 1].price = baseValue
     }
 
     return history
 }
 
-// Estimate value based on rarity and type (Fallback if API fails)
+// Estimate value fallback
 function estimateValue(card: TCGdexCard, isVintage: boolean): number {
     const name = card.name.toLowerCase()
     const rarity = card.rarity?.toLowerCase() || ''
 
-    let base = 10
+    let base = 5
 
     // Ultra Rares
-    if (name.includes(' ex') || name.includes(' gx') || name.includes(' v') || name.includes(' vmax') || name.includes(' vstar')) base = 30
-    if (name.includes('star') || name.includes('shining')) base = 150
-    if (rarity.includes('secret') || rarity.includes('hyper')) base = 80
-    if (rarity.includes('illustration') || rarity.includes('alt')) base = 60
+    if (name.includes(' ex') || name.includes(' gx') || name.includes(' v') || name.includes(' vmax') || name.includes(' vstar')) base = 15
+    if (name.includes('star') || name.includes('shining')) base = 100
+    if (rarity.includes('secret') || rarity.includes('hyper')) base = 50
+    if (rarity.includes('illustration') || rarity.includes('alt')) base = 40
 
     // Vintage Multiplier
     if (isVintage) {
-        if (name.includes(' ex')) return base * 8 // EX Series ex cards are expensive
-        if (name.includes('star')) return base * 5 // Gold Stars are very expensive
-        return base * 4
+        if (name.includes(' ex')) return Math.max(base * 5, 80) // Vintage EX are expensive
+        if (name.includes('star')) return Math.max(base * 5, 300)
+        return base * 3
     }
 
     return base
@@ -111,19 +117,15 @@ function generateAnalysisText(card: AnalyzedCard, macroRisk: number): string {
     const parts = []
 
     if (card.isVintage) {
-        parts.push("Carte Vintage : Volatilité réduite, valeur refuge potentielle.")
+        parts.push("Carte Vintage : Le marché privilégie l'état (PSA 9-10).")
     } else {
-        parts.push("Carte Moderne : Haute volatilité, sensible aux tendances.")
+        parts.push("Carte Moderne : Sensible à la rotation et aux reprints.")
     }
 
     if (card.score > 70) {
-        parts.push("⚠️ Score Élevé : Signaux de spéculation intense détectés.")
+        parts.push("⚠️ Haute Spéculation : Prix possiblement en bulle.")
     } else if (card.score < 30) {
-        parts.push("✅ Score Bas : Investissement considéré comme stable.")
-    }
-
-    if (macroRisk > 60) {
-        parts.push("Environnement Macro risqué (BTC/Indices).")
+        parts.push("✅ Valeur Sûre : Historique de prix stable.")
     }
 
     return parts.join(" ")
@@ -199,34 +201,39 @@ export default function AnalysisPage() {
         if (e.key === 'Enter') handleSearch()
     }
 
-    const addCardToAnalysis = async (card: TCGdexCard) => {
-        if (analyzedCards.some(c => c.tcgdexId === card.id)) {
+    const addCardToAnalysis = async (partialCard: TCGdexCard) => {
+        if (analyzedCards.some(c => c.tcgdexId === partialCard.id)) {
             alert('Cette carte est déjà dans votre analyse')
             return
         }
 
-        setAddingCardId(card.id)
+        setAddingCardId(partialCard.id)
 
         try {
+            // 1. Fetch FULL details from TCGdex (to get correct Set Name, Local ID, etc)
+            const card = await getCard(partialCard.id) || partialCard
+
             const isVintage = checkVintage(card.set?.id || '', card.set?.name || '')
 
-            // Try to fetch REAL PRICE from Pokemon TCG API
+            // 2. Fetch REAL PRICE from Pokemon TCG API
             let realPrice = 0
+
+            // Attempt 1: Try exact ID match (Works if TCGdex ID matches PokemonTCG ID)
             try {
-                // Search for the card in Pokemon TCG API by name
-                // Ideally we would match set name too, but TCGdex set names might differ from Pokemon TCG API
-                const tcgResults = await searchCardsWithPrices(card.name, 1)
-                if (tcgResults && tcgResults.length > 0) {
-                    const priceInfo = getBestMarketPrice(tcgResults[0])
-                    if (priceInfo) {
-                        realPrice = priceInfo.price
-                    }
+                const tcgCard = await getCardWithPrices(card.id)
+                if (tcgCard) {
+                    const priceInfo = getBestMarketPrice(tcgCard)
+                    if (priceInfo) realPrice = priceInfo.price
                 }
-            } catch (err) {
-                console.error('Error fetching real price:', err)
+            } catch (e) {
+                // Ignore error, try next method
             }
 
-            // Fallback to estimation if real price fetch failed or returned 0
+            // Attempt 2: If failed, try search by name + number (if available)
+            // Note: Crossing formats is hard. 'swsh1' (TCGdex) vs 'swsh1' (PokemonTCG) usually match.
+            // But names differ (French vs English).
+
+            // Fallback: Estimate
             const finalValue = realPrice > 0 ? realPrice : estimateValue(card, isVintage)
 
             const priceHistory = generatePriceHistory(finalValue, isVintage)
@@ -244,7 +251,8 @@ export default function AnalysisPage() {
                 score: finalScore,
                 estimatedValue: finalValue,
                 addedAt: new Date(),
-                analysisText: ''
+                analysisText: '',
+                cardNumber: card.localId || '?'
             }
 
             analyzedCard.analysisText = generateAnalysisText(analyzedCard, macroData?.macroRisk || 50)
@@ -388,7 +396,12 @@ export default function AnalysisPage() {
                                 <div className="p-3">
                                     <div className="mb-2">
                                         <h3 className="font-semibold text-white text-sm truncate" title={card.name}>{card.name}</h3>
-                                        <p className="text-xs text-white/50 truncate" title={card.setName}>{card.setName}</p>
+                                        <div className="flex items-center justify-between text-xs text-white/50">
+                                            <span className="truncate max-w-[60%]" title={card.setName}>{card.setName}</span>
+                                            <span className="flex items-center gap-0.5">
+                                                <Hash className="w-3 h-3" /> {card.cardNumber}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     <div className="flex items-center justify-between mb-2">
@@ -410,12 +423,6 @@ export default function AnalysisPage() {
                                         </div>
                                         <span className="text-xs font-bold px-2 py-1 rounded bg-black/20">
                                             {statusLabel}
-                                        </span>
-                                    </div>
-
-                                    <div className="mt-2 text-center">
-                                        <span className="text-[10px] text-purple-300 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Info className="w-3 h-3" /> Voir détails
                                         </span>
                                     </div>
                                 </div>
@@ -505,7 +512,11 @@ export default function AnalysisPage() {
                                                 </div>
                                             </div>
                                             <p className="font-medium text-white text-sm truncate">{card.name}</p>
-                                            <p className="text-xs text-white/50 truncate">{card.set?.name || 'Set inconnu'}</p>
+                                            <p className="text-xs text-white/50 truncate mb-1">{card.set?.name || 'Set inconnu'}</p>
+                                            <div className="flex items-center gap-1 text-[10px] text-white/40">
+                                                <Hash className="w-3 h-3" />
+                                                <span>{card.localId || '?'}</span>
+                                            </div>
                                         </button>
                                     ))}
                                 </div>
