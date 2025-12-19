@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { detectPriceOutliers } from '../lib/validation/priceSchema'
+import { detectPriceOutliers } from '../src/lib/validation/priceSchema'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY! // Service key for admin access
