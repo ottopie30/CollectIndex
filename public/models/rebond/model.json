@@ -587,14 +587,14 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "bidirectional/forward_lstm_4/lstm_cell/bias",
+                    "name": "bidirectional/forward_lstm_4/bias",
                     "shape": [
                         512
                     ],
                     "dtype": "float32"
                 },
                 {
-                    "name": "bidirectional/backward_lstm_4/lstm_cell/kernel",
+                    "name": "bidirectional/backward_lstm_4/kernel",
                     "shape": [
                         2,
                         512
@@ -602,7 +602,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "bidirectional/backward_lstm_4/lstm_cell/recurrent_kernel",
+                    "name": "bidirectional/backward_lstm_4/recurrent_kernel",
                     "shape": [
                         128,
                         512
@@ -610,7 +610,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "bidirectional/backward_lstm_4/lstm_cell/bias",
+                    "name": "bidirectional/backward_lstm_4/bias",
                     "shape": [
                         512
                     ],
@@ -647,7 +647,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "lstm_5/lstm_cell/kernel",
+                    "name": "lstm_5/kernel",
                     "shape": [
                         256,
                         256
@@ -655,7 +655,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "lstm_5/lstm_cell/recurrent_kernel",
+                    "name": "lstm_5/recurrent_kernel",
                     "shape": [
                         64,
                         256
@@ -663,7 +663,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "lstm_5/lstm_cell/bias",
+                    "name": "lstm_5/bias",
                     "shape": [
                         256
                     ],
