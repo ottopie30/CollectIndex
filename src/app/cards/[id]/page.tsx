@@ -100,11 +100,19 @@ export default function CardDetailPage() {
 
                             // NEW: Try to get English name for better pricing matches
                             let searchName = cardData.name
+                            let searchSet = cardData.set?.name
+
                             try {
                                 const enCard = await getCardInEnglish(cardData.id)
-                                if (enCard && enCard.name) {
-                                    searchName = enCard.name
-                                    console.log('🌍 Found English name for pricing:', searchName)
+                                if (enCard) {
+                                    if (enCard.name) {
+                                        searchName = enCard.name
+                                        console.log('🌍 Found English name:', searchName)
+                                    }
+                                    if (enCard.set?.name) {
+                                        searchSet = enCard.set.name
+                                        console.log('🌍 Found English set:', searchSet)
+                                    }
                                 }
                             } catch (e) {
                                 console.warn('Failed to fetch EN name, using local name.')
@@ -115,9 +123,9 @@ export default function CardDetailPage() {
 
                             // Optimize query by adding Set Name if available
                             let searchQuery = `name:"${cleanName}" number:${number}`
-                            if (cardData.set && cardData.set.name) {
+                            if (searchSet) {
                                 // Remove special chars from set name to avoid query syntax errors
-                                const cleanSet = cardData.set.name.replace(/[^\w\s]/g, '')
+                                const cleanSet = searchSet.replace(/[^\w\s]/g, '')
                                 searchQuery += ` set.name:"${cleanSet}*"`
                             }
 
