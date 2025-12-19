@@ -176,7 +176,8 @@ export function calculateD3Score(
     psaPopulation: number | null | undefined = null,
     soldListings30d: number = 0,
     activeListings: number = 1,
-    setId: string = ''
+    setId: string = '',
+    cardName: string = ''
 ): {
     rarityScore: number
     psaPopScore: number
@@ -184,7 +185,15 @@ export function calculateD3Score(
     vintageBonus: number
     d3Total: number
 } {
-    const rarityScore = getRarityScore(rarity)
+    let rarityScore = getRarityScore(rarity)
+
+    // Override rarity based on name (metadata fallback)
+    const lowerName = cardName.toLowerCase()
+    if (lowerName.endsWith(' ex') || lowerName.includes(' ex ')) rarityScore = Math.max(rarityScore, 85)
+    if (lowerName.includes('gold star') || lowerName.includes('☆')) rarityScore = Math.max(rarityScore, 95)
+    if (lowerName.startsWith('shining ')) rarityScore = Math.max(rarityScore, 90)
+    if (lowerName.includes('lv.x')) rarityScore = Math.max(rarityScore, 80)
+
     const psaPopScore = getPSAPopulationScore(psaPopulation)
     const supplyDemandScore = getSupplyDemandScore(soldListings30d, activeListings)
 

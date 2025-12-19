@@ -36,10 +36,10 @@ export function calculateCV(prices: number[]): number {
 }
 
 export function cvToScore(cv: number): number {
-    if (cv < 5) return 20   // Very stable
-    if (cv < 15) return 50  // Normal fluctuation
-    if (cv < 30) return 75  // Volatile
-    return 100              // Highly volatile
+    if (cv < 2) return 10   // Extremely stable
+    if (cv < 5) return 40   // Slight fluctuation
+    if (cv < 10) return 70  // Moderate volatility
+    return 100              // Higly volatile
 }
 
 /**

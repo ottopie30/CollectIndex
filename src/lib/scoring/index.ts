@@ -122,7 +122,8 @@ export function calculateFullScore(params: {
         params.psaPopulation ?? null,
         params.soldListings30d || 0,
         params.activeListings || 1,
-        params.setId || ''
+        params.setId || '',
+        params.pokemonName || ''
     )
 
     // D4: Sentiment
@@ -355,7 +356,8 @@ export function calculateSimplifiedScore(params: {
         null, // no PSA data
         0, // no listings data
         1,
-        params.setId || ''
+        params.setId || '',
+        params.pokemonName || ''
     )
 
     // D4 simplified
