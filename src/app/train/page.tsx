@@ -194,8 +194,9 @@ export default function TrainPage() {
                     const progressPct = 20 + ((epoch + 1) / config.epochs) * 70
                     setProgress(Math.round(progressPct))
 
-                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(0)
-                    const eta = ((elapsed / (epoch + 1)) * (config.epochs - epoch - 1)).toFixed(0)
+                    const elapsedSeconds = (Date.now() - startTime) / 1000
+                    const elapsed = elapsedSeconds.toFixed(0)
+                    const eta = ((elapsedSeconds / (epoch + 1)) * (config.epochs - epoch - 1)).toFixed(0)
 
                     if (epoch % 5 === 0 || epoch === config.epochs - 1) {
                         setStatus(`Epoch ${epoch + 1}/${config.epochs} - Loss: ${logs.loss.toFixed(4)}, Acc: ${(logs.acc * 100).toFixed(2)}% - ETA: ${eta}s`)
