@@ -121,12 +121,17 @@ export default function CardDetailPage() {
                             // Clean name (remove (JTG 161) suffix if present)
                             const cleanName = searchName.split('(')[0].trim()
 
-                            // Optimize query by adding Set Name if available
-                            let searchQuery = `name:"${cleanName}" number:${number}`
-                            if (searchSet) {
-                                // Remove special chars from set name to avoid query syntax errors
+                            // Optimize query: If we have Set Name + Number, simpler is faster (avoids text search)
+                            let searchQuery = ''
+
+                            if (searchSet && number) {
+                                // Remove special chars from set name
                                 const cleanSet = searchSet.replace(/[^\w\s]/g, '')
-                                searchQuery += ` set.name:"${cleanSet}*"`
+                                // Fast Query: Number + Set (Precision match, no text search)
+                                searchQuery = `number:${number} set.name:"${cleanSet}"`
+                            } else {
+                                // Fallback: Name + Number
+                                searchQuery = `name:"${cleanName}" number:${number}`
                             }
 
                             console.log(`⚠️ Pricing Fallback: Searching for ${searchQuery}`)
