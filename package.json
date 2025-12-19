@@ -16,7 +16,7 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.6.2",
+    "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.49.1",
     "@tensorflow/tfjs": "^4.23.0",
     "lucide-react": "^0.469.0",
