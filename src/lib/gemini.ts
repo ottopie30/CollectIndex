@@ -19,7 +19,8 @@ export async function generateCardAnalysis(cardName: string, price: number, tren
         const model = genAI.getGenerativeModel({
             model: MODEL_NAME,
             generationConfig: {
-                responseMimeType: "application/json"
+                responseMimeType: "application/json",
+                temperature: 0.0,
             }
         })
 
