@@ -36,7 +36,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         async function loadMessages() {
             try {
-                const msgs = await import(`../../messages/${locale}.json`)
+                let msgs
+                switch (locale) {
+                    case 'fr':
+                        msgs = await import('@/../messages/fr.json')
+                        break
+                    case 'en':
+                        msgs = await import('@/../messages/en.json')
+                        break
+                    case 'de':
+                        msgs = await import('@/../messages/de.json')
+                        break
+                    case 'es':
+                        msgs = await import('@/../messages/es.json')
+                        break
+                    default:
+                        msgs = await import('@/../messages/fr.json')
+                }
                 setMessages(msgs.default)
             } catch (error) {
                 console.error(`Failed to load messages for locale: ${locale}`, error)

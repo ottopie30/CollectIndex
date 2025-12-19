@@ -13,6 +13,7 @@
     },
     "nav": {
         "dashboard": "Tableau de bord",
+        "cards": "Cartes",
         "search": "Recherche",
         "portfolio": "Portfolio",
         "analytics": "Analyses",
