@@ -1,5 +1,5 @@
 // TCGdex API integration for Pokemon card data
-const TCGDEX_API_BASE = 'https://api.tcgdex.net/v2/en'
+const TCGDEX_API_BASE = 'https://api.tcgdex.net/v2/fr'
 
 export type TCGdexCard = {
     id: string
