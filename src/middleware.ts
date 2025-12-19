@@ -12,9 +12,33 @@ export async function middleware(request: NextRequest) {
         request,
     })
 
+    // Check for missing environment variables
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    // Public routes that don't require authentication
+    const publicRoutes = ['/', '/login', '/signup', '/auth/callback', '/forgot-password']
+    const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname === route)
+    const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+    const isStaticFile = request.nextUrl.pathname.startsWith('/_next') ||
+        request.nextUrl.pathname.startsWith('/favicon') ||
+        request.nextUrl.pathname.includes('.')
+
+    // Allow public routes, API routes, and static files
+    if (isPublicRoute || isApiRoute || isStaticFile) {
+        return supabaseResponse
+    }
+
+    if (!supabaseUrl || !supabaseKey) {
+        // If env vars are missing, we can't authenticate.
+        // Allow request to proceed to show UI errors instead of hard crashing here.
+        console.warn('⚠️ Middleware: Missing Supabase Credentials. Skipping auth check.')
+        return supabaseResponse
+    }
+
     const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        supabaseUrl,
+        supabaseKey,
         {
             cookies: {
                 getAll() {
@@ -36,19 +60,6 @@ export async function middleware(request: NextRequest) {
     const {
         data: { user },
     } = await supabase.auth.getUser()
-
-    // Public routes that don't require authentication
-    const publicRoutes = ['/', '/login', '/signup', '/auth/callback', '/forgot-password']
-    const isPublicRoute = publicRoutes.some(route => request.nextUrl.pathname === route)
-    const isApiRoute = request.nextUrl.pathname.startsWith('/api')
-    const isStaticFile = request.nextUrl.pathname.startsWith('/_next') ||
-        request.nextUrl.pathname.startsWith('/favicon') ||
-        request.nextUrl.pathname.includes('.')
-
-    // Allow public routes, API routes, and static files
-    if (isPublicRoute || isApiRoute || isStaticFile) {
-        return supabaseResponse
-    }
 
     // If not logged in, redirect to login
     if (!user) {

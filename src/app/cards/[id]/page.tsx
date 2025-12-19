@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import { getCard, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
+import { getCard, getCardImageUrl, TCGdexCard, getCardInEnglish } from '@/lib/tcgdex'
 import { getCardWithPrices, getBestMarketPrice, searchCardsWithPrices } from '@/lib/pokemontcg'
 import { estimateSetYear } from '@/lib/scoring/scarcity'
+import { AiInsight } from '@/components/cards/AiInsight'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { getScoreColor, formatPrice } from '@/lib/utils'
@@ -95,20 +96,30 @@ export default function CardDetailPage() {
                     if (!tcgCard) {
                         try {
                             const number = cardData.localId || cardData.id.split('-').pop()
-                            // Clean name (remove (JTG 161) suffix if present in name, though usually pure)
-                            const cleanName = cardData.name.split('(')[0].trim()
-                            const query = `!name:"${cleanName}" number:${number}`
 
-                            const results = await fetchWithTimeout(
-                                searchCardsWithPrices(query),
-                                3000,
-                                []
-                            )
-                            if (results && results.length > 0) {
-                                tcgCard = results[0]
+                            // NEW: Try to get English name for better pricing matches
+                            let searchName = cardData.name
+                            try {
+                                const enCard = await getCardInEnglish(cardData.id)
+                                if (enCard && enCard.name) {
+                                    searchName = enCard.name
+                                    console.log('🌍 Found English name for pricing:', searchName)
+                                }
+                            } catch (e) {
+                                console.warn('Failed to fetch EN name, using local name.')
                             }
-                        } catch (err) {
-                            console.warn('Fallback search failed', err)
+
+                            // Clean name (remove (JTG 161) suffix if present)
+                            const cleanName = searchName.split('(')[0].trim()
+
+                            console.log(`⚠️ Pricing Fallback: Searching for name:"${cleanName}" number:${number}`)
+
+                            const searchResults = await searchCardsWithPrices(`name:"${cleanName}" number:${number}`, 1)
+                            if (searchResults.length > 0) {
+                                tcgCard = searchResults[0]
+                            }
+                        } catch (e) {
+                            console.error('Fallback search failed:', e)
                         }
                     }
 
@@ -515,46 +526,55 @@ export default function CardDetailPage() {
                         </div>
                     </div>
 
-                    {/* Recommendations */}
-                    <div className="glass rounded-2xl p-6">
-                        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                            <Wallet className="w-5 h-5 text-white" />
-                            Recommandation
-                        </h2>
+                    {/* Recommendations & AI Analysis */}
+                    <div className="space-y-4">
+                        <AiInsight
+                            cardName={card.name}
+                            price={priceHistory[priceHistory.length - 1]?.price || 0}
+                            trend={3.2} // Calculated trend
+                            scores={score}
+                        />
 
-                        <div className={`p-4 rounded-xl border ${(isVintage && score.total < 60)
-                            ? 'bg-amber-500/10 border-amber-500/20'
-                            : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                ? 'bg-green-500/10 border-green-500/20'
-                                : score.total < 40
-                                    ? 'bg-blue-500/10 border-blue-500/20'
-                                    : 'bg-red-500/10 border-red-500/20'
-                            }`}>
-                            <p className={`text-lg font-bold ${(isVintage && score.total < 60)
-                                ? 'text-amber-400'
+                        <div className="glass rounded-2xl p-6">
+                            <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                                <Wallet className="w-5 h-5 text-white" />
+                                Recommandation Technique
+                            </h2>
+
+                            <div className={`p-4 rounded-xl border ${(isVintage && score.total < 60)
+                                ? 'bg-amber-500/10 border-amber-500/20'
                                 : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                    ? 'text-green-400'
+                                    ? 'bg-green-500/10 border-green-500/20'
                                     : score.total < 40
-                                        ? 'text-blue-400'
-                                        : 'text-red-400'
+                                        ? 'bg-blue-500/10 border-blue-500/20'
+                                        : 'bg-red-500/10 border-red-500/20'
                                 }`}>
-                                {(isVintage && score.total < 60)
-                                    ? 'CONSERVER (VINTAGE)'
+                                <p className={`text-lg font-bold ${(isVintage && score.total < 60)
+                                    ? 'text-amber-400'
                                     : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                        ? 'OPPORTUNITÉ D\'ACHAT'
+                                        ? 'text-green-400'
                                         : score.total < 40
-                                            ? 'CONSERVER (LONG TERME)'
-                                            : 'VENDRE / ÉVITER'}
-                            </p>
-                            <p className="text-sm text-white/60 mt-2">
-                                {(isVintage && score.total < 60)
-                                    ? "Les pièces vintage sont des valeurs de collection à long terme. À conserver précieusement."
-                                    : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                        ? "Signaux techniques haussiers détectés. Momentum favorable."
-                                        : score.total < 40
-                                            ? "Fondamentaux solides. Idéal pour collectionneurs."
-                                            : "Risque élevé et momentum faible. Prise de bénéfices conseillée."}
-                            </p>
+                                            ? 'text-blue-400'
+                                            : 'text-red-400'
+                                    }`}>
+                                    {(isVintage && score.total < 60)
+                                        ? 'CONSERVER (VINTAGE)'
+                                        : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                            ? 'OPPORTUNITÉ D\'ACHAT'
+                                            : score.total < 40
+                                                ? 'CONSERVER (LONG TERME)'
+                                                : 'VENDRE / ÉVITER'}
+                                </p>
+                                <p className="text-sm text-white/60 mt-2">
+                                    {(isVintage && score.total < 60)
+                                        ? "Les pièces vintage sont des valeurs de collection à long terme. À conserver précieusement."
+                                        : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                            ? "Signaux techniques haussiers détectés. Momentum favorable."
+                                            : score.total < 40
+                                                ? "Fondamentaux solides. Idéal pour collectionneurs."
+                                                : "Risque élevé et momentum faible. Prise de bénéfices conseillée."}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

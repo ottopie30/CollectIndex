@@ -78,9 +78,7 @@ export type PokemonTCGCard = {
 
 // Fetch headers with optional API key
 function getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-    }
+    const headers: HeadersInit = {}
     if (API_KEY) {
         headers['X-Api-Key'] = API_KEY
     }
@@ -88,10 +86,17 @@ function getHeaders(): HeadersInit {
 }
 
 // Search cards by name
+// Search cards (Flexible query)
 export async function searchCardsWithPrices(query: string, limit = 20): Promise<PokemonTCGCard[]> {
     try {
+        // If query contains ':', treat as raw query (e.g. '!name:"Aggron" number:1')
+        // Otherwise treat as simple name search
+        const qParam = query.includes(':')
+            ? query
+            : `name:"${query}*"` // Wildcard for better matches
+
         const response = await fetch(
-            `${POKEMON_TCG_API_BASE}/cards?q=name:"${encodeURIComponent(query)}"&pageSize=${limit}&orderBy=-set.releaseDate`,
+            `${POKEMON_TCG_API_BASE}/cards?q=${encodeURIComponent(qParam)}&pageSize=${limit}&orderBy=-set.releaseDate`,
             { headers: getHeaders() }
         )
         if (!response.ok) {

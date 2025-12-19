@@ -62,6 +62,18 @@ export async function getCard(cardId: string): Promise<TCGdexCard | null> {
     }
 }
 
+export async function getCardInEnglish(cardId: string): Promise<TCGdexCard | null> {
+    try {
+        // Force English endpoint to get the EN name for price matching
+        const response = await fetch(`https://api.tcgdex.net/v2/en/cards/${cardId}`)
+        if (!response.ok) return null
+        return response.json()
+    } catch (error) {
+        console.error('TCGdex get English card error:', error)
+        return null
+    }
+}
+
 export async function getAllSets(): Promise<TCGdexSet[]> {
     try {
         const response = await fetch(`${TCGDEX_API_BASE}/sets`)
