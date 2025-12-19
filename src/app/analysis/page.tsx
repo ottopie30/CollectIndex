@@ -16,7 +16,8 @@ import {
     Target,
     Brain,
     Globe,
-    Trash2
+    Trash2,
+    Info
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/provider'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
@@ -37,6 +38,7 @@ type AnalyzedCard = {
     score: number
     estimatedValue: number
     addedAt: Date
+    analysisText: string
 }
 
 // Generate price history for scoring
@@ -47,8 +49,9 @@ function generatePriceHistory(baseValue: number, isVintage: boolean): PricePoint
     for (let i = 90; i >= 0; i--) {
         const date = new Date()
         date.setDate(date.getDate() - i)
-        const volatility = isVintage ? 0.02 : 0.05
-        price = price * (1 + (Math.random() - 0.48) * volatility)
+        // Vintage cards: more stable but can have spikes
+        const volatility = isVintage ? 0.015 : 0.04
+        price = price * (1 + (Math.random() - 0.45) * volatility) // Slightly upward trend
         history.push({
             date: date.toISOString().split('T')[0],
             price: Math.round(price * 100) / 100
@@ -58,28 +61,69 @@ function generatePriceHistory(baseValue: number, isVintage: boolean): PricePoint
     return history
 }
 
-// Estimate value based on rarity
-function estimateValue(rarity: string | undefined, isVintage: boolean): number {
-    const baseValues: Record<string, number> = {
-        'Common': 1,
-        'Uncommon': 3,
-        'Rare': 15,
-        'Rare Holo': 50,
-        'Ultra Rare': 100,
-        'Secret Rare': 150,
-        'Illustration Rare': 80,
-        'Special Art Rare': 120,
-        'Shiny Rare': 60,
+// Estimate value based on rarity and type
+function estimateValue(card: TCGdexCard, isVintage: boolean): number {
+    const name = card.name.toLowerCase()
+    const rarity = card.rarity?.toLowerCase() || ''
+
+    let base = 10
+
+    // Ultra Rares
+    if (name.includes(' ex') || name.includes(' gx') || name.includes(' v') || name.includes(' vmax') || name.includes(' vstar')) base = 30
+    if (name.includes('star') || name.includes('shining')) base = 150
+    if (rarity.includes('secret') || rarity.includes('hyper')) base = 80
+    if (rarity.includes('illustration') || rarity.includes('alt')) base = 60
+
+    // Vintage Multiplier
+    if (isVintage) {
+        if (name.includes(' ex')) return base * 8 // EX Series ex cards are expensive
+        if (name.includes('star')) return base * 5 // Gold Stars are very expensive
+        return base * 4
     }
 
-    const base = baseValues[rarity || 'Rare'] || 20
-    return isVintage ? base * 5 : base
+    return base
 }
 
-// Check if card is vintage
-function checkVintage(setId: string): boolean {
-    const vintagePatterns = ['base', 'jungle', 'fossil', 'neo', 'gym', 'legendary', 'expedition', 'aquapolis', 'skyridge', 'ex']
-    return vintagePatterns.some(p => setId.toLowerCase().includes(p))
+// Check if card is vintage - Improved logic
+function checkVintage(setId: string, setName: string): boolean {
+    const id = setId.toLowerCase()
+    const name = setName.toLowerCase()
+
+    // Explicit vintage eras identifiers
+    const vintageIds = ['base', 'gym', 'neo', 'ecard', 'ex', 'dp', 'pl', 'hgss', 'bw', 'xy']
+    // Modern eras
+    const modernIds = ['sm', 'swsh', 'sv']
+
+    if (modernIds.some(m => id.startsWith(m))) return false
+    if (vintageIds.some(v => id.startsWith(v))) return true
+
+    // Fallback on name keywords
+    if (name.includes('base set') || name.includes('wizards') || name.includes('neo ') || name.includes('e-series') || name.includes('ex ')) return true
+
+    return false
+}
+
+// Generate analysis text explanation
+function generateAnalysisText(card: AnalyzedCard, macroRisk: number): string {
+    const parts = []
+
+    if (card.isVintage) {
+        parts.push("Carte Vintage : Volatilité réduite, valeur refuge potentielle.")
+    } else {
+        parts.push("Carte Moderne : Haute volatilité, sensible aux tendances.")
+    }
+
+    if (card.score > 70) {
+        parts.push("⚠️ Score Élevé : Signaux de spéculation intense détectés.")
+    } else if (card.score < 30) {
+        parts.push("✅ Score Bas : Investissement considéré comme stable.")
+    }
+
+    if (macroRisk > 60) {
+        parts.push("Environnement Macro risqué (BTC/Indices).")
+    }
+
+    return parts.join(" ")
 }
 
 export default function AnalysisPage() {
@@ -95,8 +139,8 @@ export default function AnalysisPage() {
         btcChange: number
         macroRisk: number
     } | null>(null)
+    const [expandedCard, setExpandedCard] = useState<string | null>(null)
 
-    // Load macro data on mount
     useEffect(() => {
         const loadMacro = async () => {
             try {
@@ -114,7 +158,6 @@ export default function AnalysisPage() {
         }
         loadMacro()
 
-        // Load saved cards from localStorage
         const saved = localStorage.getItem('analyzedCards')
         if (saved) {
             try {
@@ -129,20 +172,18 @@ export default function AnalysisPage() {
         }
     }, [])
 
-    // Save cards to localStorage
     useEffect(() => {
         if (analyzedCards.length > 0) {
             localStorage.setItem('analyzedCards', JSON.stringify(analyzedCards))
         }
     }, [analyzedCards])
 
-    // Search cards
     const handleSearch = async () => {
         if (!searchQuery.trim()) return
         setIsSearching(true)
         try {
             const results = await searchCards(searchQuery)
-            setSearchResults(results.slice(0, 20))
+            setSearchResults(results.filter(c => c.image).slice(0, 20)) // Only cards with images
         } catch (error) {
             console.error('Search error:', error)
         } finally {
@@ -150,38 +191,39 @@ export default function AnalysisPage() {
         }
     }
 
-    // Handle search on Enter key
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSearch()
-        }
+        if (e.key === 'Enter') handleSearch()
     }
 
-    // Add card to analysis
     const addCardToAnalysis = (card: TCGdexCard) => {
-        // Check if already added
         if (analyzedCards.some(c => c.tcgdexId === card.id)) {
             alert('Cette carte est déjà dans votre analyse')
             return
         }
 
-        const isVintage = checkVintage(card.set?.id || '')
-        const estimatedValue = estimateValue(card.rarity, isVintage)
+        const isVintage = checkVintage(card.set?.id || '', card.set?.name || '')
+        const estimatedValue = estimateValue(card, isVintage)
         const priceHistory = generatePriceHistory(estimatedValue, isVintage)
-        const score = calculateQuickScore(priceHistory, 5000, isVintage)
+        // Adjust score calculation slightly for vintage EX
+        const baseScore = calculateQuickScore(priceHistory, 5000, isVintage)
+        // Vintage EX cards are often safer investments (lower speculation score unless pumped)
+        const finalScore = isVintage && estimatedValue > 100 ? Math.max(10, baseScore - 15) : baseScore
 
         const analyzedCard: AnalyzedCard = {
             id: Date.now().toString(),
             tcgdexId: card.id,
             name: card.name,
-            setName: card.set?.name || 'Unknown',
-            rarity: card.rarity || null,
+            setName: card.set?.name || 'Set Inconnu',
+            rarity: card.rarity || 'Non spécifié',
             imageUrl: getCardImageUrl(card, 'high'),
             isVintage,
-            score,
+            score: finalScore,
             estimatedValue,
-            addedAt: new Date()
+            addedAt: new Date(),
+            analysisText: '' // Will be filled below
         }
+
+        analyzedCard.analysisText = generateAnalysisText(analyzedCard, macroData?.macroRisk || 50)
 
         setAnalyzedCards(prev => [...prev, analyzedCard].sort((a, b) => a.score - b.score))
         setShowSearchModal(false)
@@ -189,10 +231,9 @@ export default function AnalysisPage() {
         setSearchResults([])
     }
 
-    // Remove card from analysis
-    const removeCard = (id: string) => {
+    const removeCard = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation()
         setAnalyzedCards(prev => prev.filter(c => c.id !== id))
-        // Update localStorage
         const updated = analyzedCards.filter(c => c.id !== id)
         if (updated.length === 0) {
             localStorage.removeItem('analyzedCards')
@@ -200,13 +241,6 @@ export default function AnalysisPage() {
             localStorage.setItem('analyzedCards', JSON.stringify(updated))
         }
     }
-
-    // Stats
-    const avgScore = analyzedCards.length > 0
-        ? Math.round(analyzedCards.reduce((sum, c) => sum + c.score, 0) / analyzedCards.length)
-        : 0
-    const bestInvestments = analyzedCards.filter(c => c.score < 30).length
-    const speculative = analyzedCards.filter(c => c.score > 60).length
 
     if (isLoading) {
         return (
@@ -218,7 +252,6 @@ export default function AnalysisPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-white">Analyse de Marché</h1>
@@ -227,13 +260,13 @@ export default function AnalysisPage() {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setShowSearchModal(true)}
-                        className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center gap-2 shadow-lg shadow-white/10"
                     >
                         <Plus className="w-5 h-5" />
                         Ajouter une carte
                     </button>
                     {macroData && (
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 hidden md:flex">
                             <div className="px-3 py-2 glass rounded-xl text-center">
                                 <p className="text-xs text-white/50">Fear & Greed</p>
                                 <p className={`font-bold ${macroData.fearGreed > 60 ? 'text-red-400' : macroData.fearGreed < 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -251,189 +284,124 @@ export default function AnalysisPage() {
                 </div>
             </div>
 
-            {/* Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="glass rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-purple-500/20">
-                            <BarChart3 className="w-5 h-5 text-purple-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-white/50">Cartes Analysées</p>
-                            <p className="text-xl font-bold text-white">{analyzedCards.length}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="glass rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-emerald-500/20">
-                            <Shield className="w-5 h-5 text-emerald-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-white/50">Investissements</p>
-                            <p className="text-xl font-bold text-emerald-400">{bestInvestments}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="glass rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-red-500/20">
-                            <AlertTriangle className="w-5 h-5 text-red-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-white/50">Spéculatives</p>
-                            <p className="text-xl font-bold text-red-400">{speculative}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="glass rounded-2xl p-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-amber-500/20">
-                            <Target className="w-5 h-5 text-amber-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-white/50">Score Moyen</p>
-                            <p className="text-xl font-bold text-white">{avgScore || '-'}/100</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Dimension Legend */}
-            <div className="glass rounded-2xl p-4">
-                <h3 className="text-sm font-medium text-white/70 mb-3">Score 5D - Dimensions Analysées</h3>
-                <div className="grid grid-cols-5 gap-4 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="p-2 rounded-lg bg-blue-500/20">
-                            <TrendingUp className="w-4 h-4 text-blue-400" />
-                        </div>
-                        <span className="text-xs text-white/60">D1: Volatilité</span>
-                        <span className="text-xs text-white/40">25%</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="p-2 rounded-lg bg-purple-500/20">
-                            <Zap className="w-4 h-4 text-purple-400" />
-                        </div>
-                        <span className="text-xs text-white/60">D2: Croissance</span>
-                        <span className="text-xs text-white/40">25%</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="p-2 rounded-lg bg-amber-500/20">
-                            <Shield className="w-4 h-4 text-amber-400" />
-                        </div>
-                        <span className="text-xs text-white/60">D3: Scarcité</span>
-                        <span className="text-xs text-white/40">20%</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="p-2 rounded-lg bg-pink-500/20">
-                            <Brain className="w-4 h-4 text-pink-400" />
-                        </div>
-                        <span className="text-xs text-white/60">D4: Sentiment</span>
-                        <span className="text-xs text-white/40">15%</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="p-2 rounded-lg bg-cyan-500/20">
-                            <Globe className="w-4 h-4 text-cyan-400" />
-                        </div>
-                        <span className="text-xs text-white/60">D5: Macro</span>
-                        <span className="text-xs text-white/40">15%</span>
-                    </div>
-                </div>
-            </div>
-
             {/* Score Legend */}
-            <div className="flex items-center justify-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                    <span className="text-white/60">0-30: Investissement</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                    <span className="text-white/60">30-60: Modéré</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span className="text-white/60">60+: Spéculatif</span>
+            <div className="glass rounded-xl p-4 flex flex-wrap justify-between items-center gap-4">
+                <h3 className="text-sm font-medium text-white/70">Comprendre le Score 5D</h3>
+                <div className="flex items-center gap-6 text-xs">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                        <span className="text-white/60">0-30: Investissement (Sûr)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                        <span className="text-white/60">30-60: Modéré (Attention)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        <span className="text-white/60">60+: Spéculatif (Risqué)</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Cards Grid */}
             {analyzedCards.length === 0 ? (
-                <div className="glass rounded-2xl p-12 text-center">
+                <div className="glass rounded-2xl p-12 text-center border-2 border-dashed border-white/10 hover:border-white/20 transition-colors">
                     <BarChart3 className="w-16 h-16 text-white/20 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-white mb-2">Aucune carte analysée</h3>
-                    <p className="text-white/50 mb-6">Ajoutez des cartes pour voir leur score de spéculation</p>
+                    <p className="text-white/50 mb-6 max-w-md mx-auto">Recherchez n'importe quelle carte pour obtenir son score de spéculation instantané basé sur 5 dimensions.</p>
                     <button
                         onClick={() => setShowSearchModal(true)}
                         className="px-6 py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors inline-flex items-center gap-2"
                     >
                         <Plus className="w-5 h-5" />
-                        Ajouter une carte
+                        Rechercher une carte
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {analyzedCards.map((card, index) => {
                         const statusLabel = card.score < 30 ? 'ACHETER' :
                             card.score < 50 ? 'SURVEILLER' :
-                                card.score < 70 ? 'PRUDENCE' : 'ÉVITER'
-                        const statusColor = card.score < 30 ? 'text-emerald-400 bg-emerald-500/20' :
-                            card.score < 50 ? 'text-amber-400 bg-amber-500/20' :
-                                card.score < 70 ? 'text-orange-400 bg-orange-500/20' :
-                                    'text-red-400 bg-red-500/20'
+                                card.score < 70 ? 'ATTENTION' : 'DANGER'
+                        const statusColor = card.score < 30 ? 'text-emerald-400 bg-emerald-950/50 border-emerald-500/30' :
+                            card.score < 50 ? 'text-amber-400 bg-amber-950/50 border-amber-500/30' :
+                                card.score < 70 ? 'text-orange-400 bg-orange-950/50 border-orange-500/30' :
+                                    'text-red-400 bg-red-950/50 border-red-500/30'
 
                         return (
-                            <div key={card.id} className="glass rounded-2xl overflow-hidden group">
-                                {/* Card Image */}
-                                <div className="relative aspect-[3/4] bg-gradient-to-br from-purple-500/20 to-blue-500/20">
-                                    <Image
-                                        src={card.imageUrl}
-                                        alt={card.name}
-                                        fill
-                                        className="object-contain p-2"
-                                        unoptimized
-                                    />
-                                    {/* Rank Badge */}
-                                    <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded-lg text-xs font-bold text-white">
-                                        #{index + 1}
-                                    </div>
-                                    {/* Remove Button */}
-                                    <button
-                                        onClick={() => removeCard(card.id)}
-                                        className="absolute top-2 right-2 p-2 bg-red-500/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
-                                    >
-                                        <Trash2 className="w-4 h-4 text-white" />
-                                    </button>
-                                    {/* Score Overlay */}
-                                    <div className="absolute bottom-2 right-2">
-                                        <ScoreGauge score={card.score} size="md" />
+                            <div
+                                key={card.id}
+                                className="glass rounded-xl overflow-hidden group hover:ring-2 hover:ring-purple-500/50 transition-all cursor-pointer relative"
+                                onClick={() => setExpandedCard(expandedCard === card.id ? null : card.id)}
+                            >
+                                <div className="absolute top-2 left-2 z-10 px-2 py-0.5 bg-black/60 backdrop-blur rounded text-[10px] font-bold text-white border border-white/10">
+                                    #{index + 1}
+                                </div>
+                                <button
+                                    onClick={(e) => removeCard(card.id, e)}
+                                    className="absolute top-2 right-2 z-10 p-1.5 bg-red-500/80 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                                >
+                                    <Trash2 className="w-3 h-3 text-white" />
+                                </button>
+
+                                <div className="p-3 pb-0">
+                                    <div className="aspect-[3/4] relative rounded-lg overflow-hidden bg-[#12121a]">
+                                        <Image
+                                            src={card.imageUrl}
+                                            alt={card.name}
+                                            fill
+                                            className="object-contain"
+                                            unoptimized
+                                        />
                                     </div>
                                 </div>
 
-                                {/* Card Info */}
-                                <div className="p-4 space-y-3">
-                                    <div>
-                                        <h3 className="font-semibold text-white truncate">{card.name}</h3>
-                                        <p className="text-sm text-white/50 truncate">{card.setName}</p>
+                                <div className="p-3">
+                                    <div className="mb-2">
+                                        <h3 className="font-semibold text-white text-sm truncate" title={card.name}>{card.name}</h3>
+                                        <p className="text-xs text-white/50 truncate" title={card.setName}>{card.setName}</p>
                                     </div>
 
-                                    <div className="flex items-center justify-between">
-                                        <span className={`px-2 py-1 rounded text-xs ${card.isVintage ? 'text-amber-400 bg-amber-500/20' : 'text-cyan-400 bg-cyan-500/20'
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] border ${card.isVintage
+                                                ? 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+                                                : 'text-cyan-300 border-cyan-500/30 bg-cyan-500/10'
                                             }`}>
-                                            {card.isVintage ? 'Vintage' : 'Moderne'}
+                                            {card.isVintage ? 'VINTAGE' : 'MODERNE'}
                                         </span>
-                                        <span className="text-sm text-white/60">{card.rarity || 'N/A'}</span>
+                                        <span className="font-mono font-bold text-white text-sm">
+                                            ~${card.estimatedValue}
+                                        </span>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                                        <span className="font-bold text-white">~${card.estimatedValue}</span>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                                    <div className={`mt-2 flex items-center justify-between p-2 rounded-lg border ${statusColor}`}>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] opacity-70 uppercase tracking-wider">Score</span>
+                                            <span className="font-black text-lg leading-none">{card.score}</span>
+                                        </div>
+                                        <span className="text-xs font-bold px-2 py-1 rounded bg-black/20">
                                             {statusLabel}
                                         </span>
                                     </div>
+
+                                    {/* Expanded Analysis */}
+                                    {expandedCard === card.id && (
+                                        <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/70 animate-in fade-in slide-in-from-top-2">
+                                            <div className="flex items-start gap-2 mb-2">
+                                                <Info className="w-3 h-3 mt-0.5 text-blue-400 shrink-0" />
+                                                <p>{card.analysisText}</p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                                <div className="bg-white/5 p-1.5 rounded">
+                                                    <span className="block text-[9px] text-white/40">RARETÉ</span>
+                                                    <span className="text-white truncate">{card.rarity}</span>
+                                                </div>
+                                                <div className="bg-white/5 p-1.5 rounded">
+                                                    <span className="block text-[9px] text-white/40">RISQUE</span>
+                                                    <span className="text-white">{macroData?.macroRisk || 50}/100</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )
@@ -443,10 +411,9 @@ export default function AnalysisPage() {
 
             {/* Search Modal */}
             {showSearchModal && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#1a1a2e] rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
-                        {/* Modal Header */}
-                        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-[#1a1a2e] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl">
+                        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
                             <h2 className="text-xl font-bold text-white">Rechercher une carte</h2>
                             <button
                                 onClick={() => {
@@ -460,13 +427,12 @@ export default function AnalysisPage() {
                             </button>
                         </div>
 
-                        {/* Search Input */}
                         <div className="p-4">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                                 <input
                                     type="text"
-                                    placeholder="Nom de la carte (ex: Charizard, Pikachu VMAX...)"
+                                    placeholder="Nom de la carte (ex: Dracaufeu, Tortank, Noctali ex...)"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={handleKeyDown}
@@ -483,11 +449,11 @@ export default function AnalysisPage() {
                             </div>
                         </div>
 
-                        {/* Search Results */}
-                        <div className="overflow-y-auto max-h-[50vh] p-4 pt-0">
+                        <div className="overflow-y-auto max-h-[50vh] p-4 pt-0 custom-scrollbar">
                             {isSearching ? (
-                                <div className="py-8 text-center">
-                                    <Loader2 className="w-8 h-8 text-white animate-spin mx-auto" />
+                                <div className="py-12 text-center">
+                                    <Loader2 className="w-8 h-8 text-white animate-spin mx-auto mb-2" />
+                                    <p className="text-white/50">Recherche TCGdex...</p>
                                 </div>
                             ) : searchResults.length > 0 ? (
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -495,9 +461,9 @@ export default function AnalysisPage() {
                                         <button
                                             key={card.id}
                                             onClick={() => addCardToAnalysis(card)}
-                                            className="glass rounded-xl p-2 text-left hover:bg-white/10 transition-colors group"
+                                            className="glass rounded-xl p-2 text-left hover:bg-white/10 transition-colors group relative overflow-hidden"
                                         >
-                                            <div className="aspect-[3/4] relative mb-2 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-lg overflow-hidden">
+                                            <div className="aspect-[3/4] relative mb-2 bg-[#12121a] rounded-lg overflow-hidden">
                                                 <Image
                                                     src={getCardImageUrl(card, 'high')}
                                                     alt={card.name}
@@ -506,21 +472,28 @@ export default function AnalysisPage() {
                                                     unoptimized
                                                 />
                                                 <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/20 transition-colors flex items-center justify-center">
-                                                    <Plus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    <Plus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity transform scale-50 group-hover:scale-100 duration-200" />
                                                 </div>
                                             </div>
                                             <p className="font-medium text-white text-sm truncate">{card.name}</p>
-                                            <p className="text-xs text-white/50 truncate">{card.set?.name}</p>
+                                            <p className="text-xs text-white/50 truncate">{card.set?.name || 'Set inconnu'}</p>
+
+                                            {/* Rarity badge */}
+                                            {card.rarity && (
+                                                <div className="absolute top-3 right-3 px-1.5 py-0.5 bg-black/60 backdrop-blur rounded text-[9px] text-white/80">
+                                                    {card.rarity}
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
                             ) : searchQuery && !isSearching ? (
-                                <div className="py-8 text-center text-white/50">
+                                <div className="py-12 text-center text-white/50">
                                     Aucun résultat pour "{searchQuery}"
                                 </div>
                             ) : (
-                                <div className="py-8 text-center text-white/50">
-                                    Tapez le nom d'une carte pour commencer
+                                <div className="py-12 text-center text-white/50">
+                                    Tapez le nom d'un Pokémon et appuyez sur Entrée
                                 </div>
                             )}
                         </div>
