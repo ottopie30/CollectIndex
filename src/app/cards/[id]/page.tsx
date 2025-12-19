@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { getCard, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
+import { getCardWithPrices, getBestMarketPrice } from '@/lib/pokemontcg'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { getScoreColor, formatPrice } from '@/lib/utils'
@@ -54,13 +55,87 @@ export default function CardDetailPage() {
     const [fullScore, setFullScore] = useState<FullSpeculationScore | null>(null)
     const [technicals, setTechnicals] = useState<TechnicalIndicators | null>(null)
     const [rebondScore, setRebondScore] = useState<RebondScore | null>(null)
+    const [priceHistory, setPriceHistory] = useState<{ date: string; price: number }[]>([])
 
-    // Generate price history based on card name for consistency
-    const priceHistory = useMemo(() => {
-        return card ? generateMockPriceHistory(card.name) : []
-    }, [card])
+    // Fetch Card + Price
+    useEffect(() => {
+        async function loadData() {
+            setIsLoading(true)
+            try {
+                // 1. Get Metadata (TCGdex)
+                const cardData = await getCard(cardId)
+                if (!cardData) return
 
-    // Calculate real score when card data is available
+                setCard(cardData)
+
+                // 2. Get Real Price (Pokemon TCG API) with timeout
+                let realPrice = 0
+                try {
+                    // Timeout helper
+                    const fetchWithTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+                        const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+                        return Promise.race([promise, timeout])
+                    }
+
+                    const tcgCard = await fetchWithTimeout(
+                        getCardWithPrices(cardData.id), // Try exact ID match
+                        3000,
+                        null
+                    )
+
+                    if (tcgCard) {
+                        const best = getBestMarketPrice(tcgCard)
+                        if (best) realPrice = best.price
+                    }
+                } catch (e) {
+                    console.warn('Price fetch failed, using fallback', e)
+                }
+
+                // 3. Current Price Strategy
+                // If real price found, use it. If not, use deterministic mock based on name.
+                let currentPrice = realPrice
+                if (currentPrice === 0) {
+                    // Fallback mock price
+                    const seed = cardData.name.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+                    currentPrice = 20 + (seed % 200)
+                }
+
+                // 4. Generate History (Back-simulation from Current Price)
+                // This ensures the chart ends exactly at the display price
+                const history = []
+                const now = Date.now()
+                let tempPrice = currentPrice
+
+                // We generate history BACKWARDS from today
+                for (let i = 0; i <= 90; i++) {
+                    history.unshift({
+                        date: new Date(now - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        price: Math.max(0, Math.round(tempPrice * 100) / 100)
+                    })
+                    // Volatility for previous day
+                    const volatility = 0.02 + (Math.random() * 0.03) // 2-5% daily volatility
+                    const change = (Math.random() - 0.5) * 2 * volatility
+                    // Reverse the change to go back in time
+                    tempPrice = tempPrice / (1 + change)
+                }
+
+                // Force last point = current price (just to be safe double check)
+                history[history.length - 1].price = currentPrice
+
+                setPriceHistory(history)
+
+            } catch (error) {
+                console.error('Error loading card page:', error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        loadData()
+    }, [cardId])
+
+
+    // Calculate Scores when Data is Ready
     useEffect(() => {
         if (card && priceHistory.length > 0) {
             const currentPrice = priceHistory[priceHistory.length - 1]?.price || 0
@@ -77,19 +152,35 @@ export default function CardDetailPage() {
             })
             setFullScore(score)
 
-            // Calculate technical indicators and rebond score
+            // Calculate technical indicators
             const techIndicators = calculateTechnicalIndicators(
                 priceHistory.map(p => ({ date: p.date, price: p.price, source: 'cardmarket' as const })),
-                0, // No volume data yet
+                0,
                 []
             )
             setTechnicals(techIndicators)
             setRebondScore(calculateRebondScore(techIndicators))
+
+            // ML Prediction (Lazy load)
+            import('@/lib/ml/prediction').then(({ predictRebond }) => {
+                const recentData = priceHistory.slice(-30).map(p => ({
+                    price: p.price,
+                    volume: Math.random() * 1000
+                }))
+                if (recentData.length >= 30) {
+                    predictRebond(recentData).then(prob => {
+                        if (prob !== null) {
+                            setTechnicals(prev => prev ? ({ ...prev, mlScore: prob * 100 }) : null)
+                            setRebondScore(prev => prev ? calculateRebondScore({ ...techIndicators, mlScore: prob * 100 }) : null)
+                        }
+                    })
+                }
+            })
         }
     }, [card, priceHistory])
 
     const score = fullScore || {
-        total: card ? calculateSimplifiedScore({ rarity: card.rarity, setId: card.set?.id, pokemonName: card.name }) : 50,
+        total: 50,
         d1: { score: 50 }, d2: { score: 50 }, d3: { score: 50 }, d4: { score: 50 }, d5: { score: 50 }
     }
     const scoreColors = getScoreColor(score.total)
@@ -97,58 +188,6 @@ export default function CardDetailPage() {
     const currentPrice = priceHistory[priceHistory.length - 1]?.price || 0
     const oldPrice = priceHistory[0]?.price || currentPrice
     const priceChange = oldPrice > 0 ? ((currentPrice - oldPrice) / oldPrice) * 100 : 0
-
-    useEffect(() => {
-        async function fetchCard() {
-            setIsLoading(true)
-            try {
-                const result = await getCard(cardId)
-                setCard(result)
-            } catch (error) {
-                console.error('Error fetching card:', error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-
-        fetchCard()
-    }, [cardId])
-
-    // ML Prediction Effect
-    useEffect(() => {
-        if (!priceHistory.length) return
-
-        async function fetchMLPrediction() {
-            // Dynamic import to avoid SSR issues if backend specific code leaks
-            const { predictRebond } = await import('@/lib/ml/prediction')
-
-            // Format data for ML [Price, Volume]
-            // Mocking volume for now as 0-100 random if not present
-            const recentData = priceHistory.slice(-30).map(p => ({
-                price: p.price,
-                volume: Math.random() * 1000 // Mock volume
-            }))
-
-            if (recentData.length >= 30) {
-                const mlProbability = await predictRebond(recentData)
-                if (mlProbability !== null) {
-                    setTechnicals(prev => {
-                        if (!prev) return null
-                        return { ...prev, mlScore: mlProbability * 100 }
-                    })
-                    // Re-calculate Rebond Score with ML
-                    setTechnicals(prev => {
-                        if (!prev) return null
-                        const newRebond = calculateRebondScore({ ...prev, mlScore: mlProbability * 100 })
-                        setRebondScore(newRebond)
-                        return { ...prev, mlScore: mlProbability * 100 }
-                    })
-                }
-            }
-        }
-
-        fetchMLPrediction() // Activate ML predictions
-    }, [priceHistory])
 
     if (isLoading) {
         return (

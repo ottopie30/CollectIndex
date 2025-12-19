@@ -38,7 +38,6 @@ export function Sidebar() {
 
     const navItems = [
         { icon: LayoutDashboard, label: t('nav.dashboard'), href: '/dashboard' },
-        { icon: BarChart3, label: 'Analyse', href: '/analysis' },
         { icon: Search, label: t('nav.cards'), href: '/cards' },
         { icon: Wallet, label: t('nav.portfolio'), href: '/portfolio' },
         { icon: Bell, label: t('nav.alerts'), href: '/alerts' },
