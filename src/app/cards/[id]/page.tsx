@@ -91,11 +91,12 @@ export default function CardDetailPage() {
                         null
                     )
 
-                    // 2b. Fallback: Search by Name + Number if ID match fails
-                    // This handles cases like TCGdex ID "JTG-161" vs PokemonTCG ID "swsh12-161"
+                    console.log('TCG Card ID Direct Hit:', tcgCard ? 'YES' : 'NO')
+
                     if (!tcgCard) {
                         try {
                             const number = cardData.localId || cardData.id.split('-').pop()
+                            console.log('Starting Fallback Search logic...')
 
                             // NEW: Try to get English name for better pricing matches
                             let searchName = cardData.name
