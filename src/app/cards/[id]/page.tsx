@@ -58,6 +58,12 @@ export default function CardDetailPage() {
     const [rebondScore, setRebondScore] = useState<RebondScore | null>(null)
     const [priceHistory, setPriceHistory] = useState<{ date: string; price: number }[]>([])
 
+    const isVintage = useMemo(() => {
+        if (!card?.set?.id) return false
+        const year = estimateSetYear(card.set.id)
+        return (year || 2020) < 2011
+    }, [card])
+
     // Fetch Card + Price
     useEffect(() => {
         async function loadData() {
@@ -495,20 +501,20 @@ export default function CardDetailPage() {
                         </h2>
 
                         <div className={`p-4 rounded-xl border ${(isVintage && score.total < 60)
-                                ? 'bg-amber-500/10 border-amber-500/20'
-                                : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                    ? 'bg-green-500/10 border-green-500/20'
-                                    : score.total < 40
-                                        ? 'bg-blue-500/10 border-blue-500/20'
-                                        : 'bg-red-500/10 border-red-500/20'
+                            ? 'bg-amber-500/10 border-amber-500/20'
+                            : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                ? 'bg-green-500/10 border-green-500/20'
+                                : score.total < 40
+                                    ? 'bg-blue-500/10 border-blue-500/20'
+                                    : 'bg-red-500/10 border-red-500/20'
                             }`}>
                             <p className={`text-lg font-bold ${(isVintage && score.total < 60)
-                                    ? 'text-amber-400'
-                                    : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
-                                        ? 'text-green-400'
-                                        : score.total < 40
-                                            ? 'text-blue-400'
-                                            : 'text-red-400'
+                                ? 'text-amber-400'
+                                : (rebondScore?.recommendation === 'strong_buy' || rebondScore?.recommendation === 'buy')
+                                    ? 'text-green-400'
+                                    : score.total < 40
+                                        ? 'text-blue-400'
+                                        : 'text-red-400'
                                 }`}>
                                 {(isVintage && score.total < 60)
                                     ? 'CONSERVER (VINTAGE)'
