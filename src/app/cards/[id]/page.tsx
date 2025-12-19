@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { getCard, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
-import { getCardWithPrices, getBestMarketPrice } from '@/lib/pokemontcg'
+import { getCardWithPrices, getBestMarketPrice, searchCardsWithPrices } from '@/lib/pokemontcg'
 import { estimateSetYear } from '@/lib/scoring/scarcity'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { PriceChart } from '@/components/charts/PriceChart'
@@ -84,11 +84,33 @@ export default function CardDetailPage() {
                         return Promise.race([promise, timeout])
                     }
 
-                    const tcgCard = await fetchWithTimeout(
+                    let tcgCard = await fetchWithTimeout(
                         getCardWithPrices(cardData.id), // Try exact ID match
-                        3000,
+                        2000,
                         null
                     )
+
+                    // 2b. Fallback: Search by Name + Number if ID match fails
+                    // This handles cases like TCGdex ID "JTG-161" vs PokemonTCG ID "swsh12-161"
+                    if (!tcgCard) {
+                        try {
+                            const number = cardData.localId || cardData.id.split('-').pop()
+                            // Clean name (remove (JTG 161) suffix if present in name, though usually pure)
+                            const cleanName = cardData.name.split('(')[0].trim()
+                            const query = `!name:"${cleanName}" number:${number}`
+
+                            const results = await fetchWithTimeout(
+                                searchCardsWithPrices(query),
+                                3000,
+                                []
+                            )
+                            if (results && results.length > 0) {
+                                tcgCard = results[0]
+                            }
+                        } catch (err) {
+                            console.warn('Fallback search failed', err)
+                        }
+                    }
 
                     if (tcgCard) {
                         const best = getBestMarketPrice(tcgCard)
