@@ -23,11 +23,14 @@ import { useI18n } from '@/lib/i18n/provider'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { getScoreColor } from '@/lib/utils'
 import { searchCards, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
+import { searchCardsWithPrices, getBestMarketPrice } from '@/lib/pokemontcg'
 import { calculateQuickScore, type PricePoint } from '@/lib/scoring/speculationScore'
 import { getMacroScore } from '@/lib/data/macro'
+import { CardAnalysisModal } from '@/components/analysis/CardAnalysisModal'
 
 // Type for analyzed card
-type AnalyzedCard = {
+// IMPORTANT: Exported so Modal can use it
+export type AnalyzedCard = {
     id: string
     tcgdexId: string
     name: string
@@ -61,7 +64,7 @@ function generatePriceHistory(baseValue: number, isVintage: boolean): PricePoint
     return history
 }
 
-// Estimate value based on rarity and type
+// Estimate value based on rarity and type (Fallback if API fails)
 function estimateValue(card: TCGdexCard, isVintage: boolean): number {
     const name = card.name.toLowerCase()
     const rarity = card.rarity?.toLowerCase() || ''
@@ -134,12 +137,13 @@ export default function AnalysisPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [searchResults, setSearchResults] = useState<TCGdexCard[]>([])
     const [isSearching, setIsSearching] = useState(false)
+    const [addingCardId, setAddingCardId] = useState<string | null>(null)
     const [macroData, setMacroData] = useState<{
         fearGreed: number
         btcChange: number
         macroRisk: number
     } | null>(null)
-    const [expandedCard, setExpandedCard] = useState<string | null>(null)
+    const [selectedCard, setSelectedCard] = useState<AnalyzedCard | null>(null)
 
     useEffect(() => {
         const loadMacro = async () => {
@@ -195,40 +199,66 @@ export default function AnalysisPage() {
         if (e.key === 'Enter') handleSearch()
     }
 
-    const addCardToAnalysis = (card: TCGdexCard) => {
+    const addCardToAnalysis = async (card: TCGdexCard) => {
         if (analyzedCards.some(c => c.tcgdexId === card.id)) {
             alert('Cette carte est déjà dans votre analyse')
             return
         }
 
-        const isVintage = checkVintage(card.set?.id || '', card.set?.name || '')
-        const estimatedValue = estimateValue(card, isVintage)
-        const priceHistory = generatePriceHistory(estimatedValue, isVintage)
-        // Adjust score calculation slightly for vintage EX
-        const baseScore = calculateQuickScore(priceHistory, 5000, isVintage)
-        // Vintage EX cards are often safer investments (lower speculation score unless pumped)
-        const finalScore = isVintage && estimatedValue > 100 ? Math.max(10, baseScore - 15) : baseScore
+        setAddingCardId(card.id)
 
-        const analyzedCard: AnalyzedCard = {
-            id: Date.now().toString(),
-            tcgdexId: card.id,
-            name: card.name,
-            setName: card.set?.name || 'Set Inconnu',
-            rarity: card.rarity || 'Non spécifié',
-            imageUrl: getCardImageUrl(card, 'high'),
-            isVintage,
-            score: finalScore,
-            estimatedValue,
-            addedAt: new Date(),
-            analysisText: '' // Will be filled below
+        try {
+            const isVintage = checkVintage(card.set?.id || '', card.set?.name || '')
+
+            // Try to fetch REAL PRICE from Pokemon TCG API
+            let realPrice = 0
+            try {
+                // Search for the card in Pokemon TCG API by name
+                // Ideally we would match set name too, but TCGdex set names might differ from Pokemon TCG API
+                const tcgResults = await searchCardsWithPrices(card.name, 1)
+                if (tcgResults && tcgResults.length > 0) {
+                    const priceInfo = getBestMarketPrice(tcgResults[0])
+                    if (priceInfo) {
+                        realPrice = priceInfo.price
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching real price:', err)
+            }
+
+            // Fallback to estimation if real price fetch failed or returned 0
+            const finalValue = realPrice > 0 ? realPrice : estimateValue(card, isVintage)
+
+            const priceHistory = generatePriceHistory(finalValue, isVintage)
+            const baseScore = calculateQuickScore(priceHistory, 5000, isVintage)
+            const finalScore = isVintage && finalValue > 100 ? Math.max(10, baseScore - 15) : baseScore
+
+            const analyzedCard: AnalyzedCard = {
+                id: Date.now().toString(),
+                tcgdexId: card.id,
+                name: card.name,
+                setName: card.set?.name || 'Set Inconnu',
+                rarity: card.rarity || 'Non spécifié',
+                imageUrl: getCardImageUrl(card, 'high'),
+                isVintage,
+                score: finalScore,
+                estimatedValue: finalValue,
+                addedAt: new Date(),
+                analysisText: ''
+            }
+
+            analyzedCard.analysisText = generateAnalysisText(analyzedCard, macroData?.macroRisk || 50)
+
+            setAnalyzedCards(prev => [...prev, analyzedCard].sort((a, b) => a.score - b.score))
+            setShowSearchModal(false)
+            setSearchQuery('')
+            setSearchResults([])
+        } catch (error) {
+            console.error('Error adding card:', error)
+            alert('Erreur lors de l\'ajout de la carte')
+        } finally {
+            setAddingCardId(null)
         }
-
-        analyzedCard.analysisText = generateAnalysisText(analyzedCard, macroData?.macroRisk || 50)
-
-        setAnalyzedCards(prev => [...prev, analyzedCard].sort((a, b) => a.score - b.score))
-        setShowSearchModal(false)
-        setSearchQuery('')
-        setSearchResults([])
     }
 
     const removeCard = (id: string, e: React.MouseEvent) => {
@@ -331,7 +361,7 @@ export default function AnalysisPage() {
                             <div
                                 key={card.id}
                                 className="glass rounded-xl overflow-hidden group hover:ring-2 hover:ring-purple-500/50 transition-all cursor-pointer relative"
-                                onClick={() => setExpandedCard(expandedCard === card.id ? null : card.id)}
+                                onClick={() => setSelectedCard(card)}
                             >
                                 <div className="absolute top-2 left-2 z-10 px-2 py-0.5 bg-black/60 backdrop-blur rounded text-[10px] font-bold text-white border border-white/10">
                                     #{index + 1}
@@ -349,7 +379,7 @@ export default function AnalysisPage() {
                                             src={card.imageUrl}
                                             alt={card.name}
                                             fill
-                                            className="object-contain"
+                                            className="object-contain transform transition-transform group-hover:scale-105"
                                             unoptimized
                                         />
                                     </div>
@@ -369,7 +399,7 @@ export default function AnalysisPage() {
                                             {card.isVintage ? 'VINTAGE' : 'MODERNE'}
                                         </span>
                                         <span className="font-mono font-bold text-white text-sm">
-                                            ~${card.estimatedValue}
+                                            ${card.estimatedValue}
                                         </span>
                                     </div>
 
@@ -383,30 +413,24 @@ export default function AnalysisPage() {
                                         </span>
                                     </div>
 
-                                    {/* Expanded Analysis */}
-                                    {expandedCard === card.id && (
-                                        <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/70 animate-in fade-in slide-in-from-top-2">
-                                            <div className="flex items-start gap-2 mb-2">
-                                                <Info className="w-3 h-3 mt-0.5 text-blue-400 shrink-0" />
-                                                <p>{card.analysisText}</p>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 mt-2">
-                                                <div className="bg-white/5 p-1.5 rounded">
-                                                    <span className="block text-[9px] text-white/40">RARETÉ</span>
-                                                    <span className="text-white truncate">{card.rarity}</span>
-                                                </div>
-                                                <div className="bg-white/5 p-1.5 rounded">
-                                                    <span className="block text-[9px] text-white/40">RISQUE</span>
-                                                    <span className="text-white">{macroData?.macroRisk || 50}/100</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <div className="mt-2 text-center">
+                                        <span className="text-[10px] text-purple-300 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Info className="w-3 h-3" /> Voir détails
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         )
                     })}
                 </div>
+            )}
+
+            {/* Analysis Modal */}
+            {selectedCard && (
+                <CardAnalysisModal
+                    card={selectedCard}
+                    onClose={() => setSelectedCard(null)}
+                />
             )}
 
             {/* Search Modal */}
@@ -461,7 +485,8 @@ export default function AnalysisPage() {
                                         <button
                                             key={card.id}
                                             onClick={() => addCardToAnalysis(card)}
-                                            className="glass rounded-xl p-2 text-left hover:bg-white/10 transition-colors group relative overflow-hidden"
+                                            disabled={addingCardId === card.id}
+                                            className="glass rounded-xl p-2 text-left hover:bg-white/10 transition-colors group relative overflow-hidden disabled:opacity-50"
                                         >
                                             <div className="aspect-[3/4] relative mb-2 bg-[#12121a] rounded-lg overflow-hidden">
                                                 <Image
@@ -472,18 +497,15 @@ export default function AnalysisPage() {
                                                     unoptimized
                                                 />
                                                 <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/20 transition-colors flex items-center justify-center">
-                                                    <Plus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity transform scale-50 group-hover:scale-100 duration-200" />
+                                                    {addingCardId === card.id ? (
+                                                        <Loader2 className="w-8 h-8 text-white animate-spin" />
+                                                    ) : (
+                                                        <Plus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity transform scale-50 group-hover:scale-100 duration-200" />
+                                                    )}
                                                 </div>
                                             </div>
                                             <p className="font-medium text-white text-sm truncate">{card.name}</p>
                                             <p className="text-xs text-white/50 truncate">{card.set?.name || 'Set inconnu'}</p>
-
-                                            {/* Rarity badge */}
-                                            {card.rarity && (
-                                                <div className="absolute top-3 right-3 px-1.5 py-0.5 bg-black/60 backdrop-blur rounded text-[9px] text-white/80">
-                                                    {card.rarity}
-                                                </div>
-                                            )}
                                         </button>
                                     ))}
                                 </div>
