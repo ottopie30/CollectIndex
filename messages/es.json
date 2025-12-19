@@ -1,0 +1,93 @@
+{
+    "common": {
+        "appName": "Altum Analytics",
+        "tagline": "Análisis Avanzado de Inversión en Cartas Pokémon",
+        "loading": "Cargando...",
+        "error": "Ha ocurrido un error",
+        "search": "Buscar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "edit": "Editar",
+        "close": "Cerrar"
+    },
+    "nav": {
+        "dashboard": "Panel",
+        "search": "Búsqueda",
+        "portfolio": "Portafolio",
+        "analytics": "Análisis",
+        "alerts": "Alertas",
+        "settings": "Configuración"
+    },
+    "dashboard": {
+        "title": "Panel",
+        "marketOverview": "Visión general del mercado",
+        "topPerformers": "Mejor rendimiento",
+        "recentActivity": "Actividad reciente",
+        "portfolioValue": "Valor del portafolio",
+        "totalReturn": "Rendimiento total"
+    },
+    "cards": {
+        "title": "Búsqueda de cartas",
+        "searchPlaceholder": "Buscar una carta (FR o EN: Charizard, Dracaufeu...)",
+        "noResults": "No se encontraron cartas",
+        "speculationScore": "Puntuación de especulación",
+        "rebondScore": "Puntuación de rebote",
+        "price": "Precio",
+        "rarity": "Rareza"
+    },
+    "portfolio": {
+        "title": "Mi Portafolio",
+        "addCard": "Agregar carta",
+        "totalValue": "Valor total",
+        "cardCount": "{count} cartas",
+        "averageScore": "Puntuación promedio",
+        "performance": "Rendimiento",
+        "composition": "Composición"
+    },
+    "analytics": {
+        "title": "Análisis Avanzados",
+        "correlation": "Mapa de calor de correlación",
+        "attribution": "Atribución de rendimiento",
+        "downloadReport": "Descargar informe PDF",
+        "sharpeRatio": "Ratio de Sharpe",
+        "maxDrawdown": "Caída máxima"
+    },
+    "pricing": {
+        "title": "Planes de Precios",
+        "free": {
+            "name": "Gratis",
+            "price": "0€",
+            "period": "/mes",
+            "description": "Para principiantes",
+            "cta": "Comenzar"
+        },
+        "essential": {
+            "name": "Esencial",
+            "price": "9,99€",
+            "period": "/mes",
+            "description": "Para entusiastas",
+            "cta": "Suscribirse"
+        },
+        "pro": {
+            "name": "Pro",
+            "price": "29,99€",
+            "period": "/mes",
+            "description": "Para profesionales",
+            "cta": "Suscribirse"
+        },
+        "enterprise": {
+            "name": "Empresa",
+            "price": "999€",
+            "period": "/mes",
+            "description": "Para equipos",
+            "cta": "Contactar ventas"
+        }
+    },
+    "footer": {
+        "copyright": "© 2025 Altum Analytics. Todos los derechos reservados.",
+        "privacy": "Política de privacidad",
+        "terms": "Términos de servicio",
+        "contact": "Contacto"
+    }
+}
