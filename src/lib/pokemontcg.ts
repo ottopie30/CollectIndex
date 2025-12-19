@@ -1,10 +1,11 @@
 // Pokemon TCG API integration for real market prices
 // API: https://pokemontcg.io - Free, provides TCGPlayer prices
 
-const POKEMON_TCG_API_BASE = 'https://api.pokemontcg.io/v2'
+// Use local proxy to avoid CORS and hide API Key
+const POKEMON_TCG_API_BASE = '/api'
 
-// API Key is optional but increases rate limits (1000 → 20000 req/day)
-const API_KEY = process.env.POKEMON_TCG_API_KEY || ''
+// API Key is handled server-side in the proxy route
+const API_KEY = ''
 
 export type PokemonTCGPrice = {
     low: number | null
@@ -76,13 +77,9 @@ export type PokemonTCGCard = {
     cardmarket?: PokemonTCGPrices['cardmarket']
 }
 
-// Fetch headers with optional API key
+// Fetch headers (No API Key needed here anymore)
 function getHeaders(): HeadersInit {
-    const headers: HeadersInit = {}
-    if (API_KEY) {
-        headers['X-Api-Key'] = API_KEY
-    }
-    return headers
+    return {}
 }
 
 // Search cards by name
