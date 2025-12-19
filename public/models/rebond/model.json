@@ -571,7 +571,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "bidirectional/forward_lstm_4/lstm_cell/kernel",
+                    "name": "bidirectional/forward_lstm_4/kernel",
                     "shape": [
                         2,
                         512
@@ -579,7 +579,7 @@
                     "dtype": "float32"
                 },
                 {
-                    "name": "bidirectional/forward_lstm_4/lstm_cell/recurrent_kernel",
+                    "name": "bidirectional/forward_lstm_4/recurrent_kernel",
                     "shape": [
                         128,
                         512
