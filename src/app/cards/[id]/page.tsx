@@ -79,12 +79,16 @@ export default function CardDetailPage() {
                 // 2. Get Real Price (Pokemon TCG API) with timeout
                 let realPrice = 0
                 try {
+                    // Start fetching English data in PARALLEL to speed up fallback if needed
+                    const enCardPromise = getCardInEnglish(cardData.id)
+
                     // Timeout helper
                     const fetchWithTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
                         const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
                         return Promise.race([promise, timeout])
                     }
 
+                    // Try direct ID match concurrently
                     let tcgCard = await fetchWithTimeout(
                         getCardWithPrices(cardData.id), // Try exact ID match
                         2000,
@@ -103,7 +107,8 @@ export default function CardDetailPage() {
                             let searchSet = cardData.set?.name
 
                             try {
-                                const enCard = await getCardInEnglish(cardData.id)
+                                // Await the promise we started earlier
+                                const enCard = await enCardPromise
                                 if (enCard) {
                                     if (enCard.name) {
                                         searchName = enCard.name
