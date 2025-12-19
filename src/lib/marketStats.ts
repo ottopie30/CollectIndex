@@ -1,8 +1,9 @@
 /**
- * Market Stats Service - Fetch market metrics from Supabase
+ * Market Stats Service - Fetch market metrics from Supabase + Real APIs
  */
 
 import { createClient } from '@/lib/auth'
+import { getFearGreedIndex, getBTCData } from '@/lib/data/macro'
 
 export type MarketStats = {
     vintageIndex: { value: number; change: number }
@@ -32,11 +33,18 @@ export type DashboardAlert = {
 }
 
 /**
- * Get latest market metrics
+ * Get latest market metrics (mix of DB + real APIs)
  */
 export async function getMarketStats(): Promise<MarketStats> {
     const supabase = createClient()
 
+    // Fetch real-time data from external APIs
+    const [fearGreed, btcData] = await Promise.all([
+        getFearGreedIndex(),
+        getBTCData()
+    ])
+
+    // Try to get DB data for historical metrics
     const { data } = await supabase
         .from('market_metrics')
         .select('*')
@@ -44,25 +52,36 @@ export async function getMarketStats(): Promise<MarketStats> {
         .limit(1)
         .single()
 
+    // Calculate speculation sentiment based on Fear & Greed
+    const speculationSentiment = fearGreed.value > 60 ?
+        Math.min(100, fearGreed.value + 10) :
+        Math.max(0, fearGreed.value - 10)
+
+    // Estimate correction probability based on macro conditions
+    let correctionProbability = 30 // Base
+    if (fearGreed.value > 80) correctionProbability += 30 // Extreme greed
+    if (btcData.change30d > 50) correctionProbability += 20 // BTC parabolic
+    if (btcData.change7d < -10) correctionProbability += 15 // BTC dropping
+
     if (data) {
         return {
             vintageIndex: { value: data.vintage_index || 3.2, change: data.vintage_index || 3.2 },
             modernIndex: { value: data.modern_index || -8.7, change: data.modern_index || -8.7 },
-            speculationSentiment: data.speculation_sentiment || 65,
-            correctionProbability: data.correction_probability || 42,
+            speculationSentiment,
+            correctionProbability: Math.min(100, correctionProbability),
             btcCorrelation: data.btc_correlation || 0.72,
-            fearGreedIndex: data.fear_greed_index || 68
+            fearGreedIndex: fearGreed.value
         }
     }
 
-    // Default values if no data
+    // Fallback with real API data
     return {
         vintageIndex: { value: 3.2, change: 3.2 },
         modernIndex: { value: -8.7, change: -8.7 },
-        speculationSentiment: 65,
-        correctionProbability: 42,
+        speculationSentiment,
+        correctionProbability: Math.min(100, correctionProbability),
         btcCorrelation: 0.72,
-        fearGreedIndex: 68
+        fearGreedIndex: fearGreed.value
     }
 }
 
