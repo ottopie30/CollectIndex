@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -12,14 +12,23 @@ import {
     BarChart3,
     AlertTriangle,
     Search,
-    X
+    X,
+    Loader2
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/provider'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { getScoreColor, formatPrice } from '@/lib/utils'
 import { searchCards, TCGdexCard, getCardImageUrl } from '@/lib/tcgdex'
+import {
+    getOrCreateDefaultPortfolio,
+    getPortfolioItems,
+    addCardToPortfolio as addCardToDb,
+    removeCardFromPortfolio as removeCardFromDb,
+    updatePortfolioItemQuantity,
+    PortfolioItem
+} from '@/lib/portfolio'
 
-// Portfolio card type
+// Portfolio card type for UI
 type PortfolioCard = {
     id: string
     cardId: string
@@ -33,53 +42,50 @@ type PortfolioCard = {
     addedAt: string
 }
 
-// Mock portfolio data (will be replaced with Supabase)
-const mockPortfolio: PortfolioCard[] = [
-    {
-        id: '1',
-        cardId: 'base1-4',
-        name: 'Charizard',
-        setName: 'Base Set',
-        image: 'https://assets.tcgdex.net/en/base/base1/4/high.webp',
-        quantity: 1,
-        purchasePrice: 350,
-        currentPrice: 420,
-        score: 25,
-        addedAt: '2024-01-15'
-    },
-    {
-        id: '2',
-        cardId: 'sv1-1',
-        name: 'Sprigatito',
-        setName: 'Scarlet & Violet',
-        image: 'https://assets.tcgdex.net/en/sv/sv1/1/high.webp',
-        quantity: 4,
-        purchasePrice: 2,
-        currentPrice: 3.5,
-        score: 45,
-        addedAt: '2024-02-20'
-    },
-    {
-        id: '3',
-        cardId: 'swsh12pt5-160',
-        name: 'Pikachu VMAX',
-        setName: 'Crown Zenith',
-        image: 'https://assets.tcgdex.net/en/swsh/swsh12pt5/160/high.webp',
-        quantity: 2,
-        purchasePrice: 45,
-        currentPrice: 52,
-        score: 68,
-        addedAt: '2024-03-01'
-    }
-]
-
 export default function PortfolioPage() {
     const { t } = useI18n()
-    const [portfolio, setPortfolio] = useState<PortfolioCard[]>(mockPortfolio)
+    const [portfolio, setPortfolio] = useState<PortfolioCard[]>([])
+    const [portfolioId, setPortfolioId] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
     const [showAddModal, setShowAddModal] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [searchResults, setSearchResults] = useState<TCGdexCard[]>([])
     const [isSearching, setIsSearching] = useState(false)
+
+    // Load portfolio from Supabase
+    const loadPortfolio = useCallback(async () => {
+        setIsLoading(true)
+        try {
+            const defaultPortfolio = await getOrCreateDefaultPortfolio()
+            if (defaultPortfolio) {
+                setPortfolioId(defaultPortfolio.id)
+                const items = await getPortfolioItems(defaultPortfolio.id)
+
+                // Map DB items to UI format
+                const cards: PortfolioCard[] = items.map((item: PortfolioItem) => ({
+                    id: item.id,
+                    cardId: item.tcgdex_id,
+                    name: item.name,
+                    setName: item.set_name,
+                    image: item.image_url,
+                    quantity: item.quantity,
+                    purchasePrice: item.purchase_price,
+                    currentPrice: item.current_price,
+                    score: item.score,
+                    addedAt: item.created_at.split('T')[0]
+                }))
+                setPortfolio(cards)
+            }
+        } catch (error) {
+            console.error('Error loading portfolio:', error)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        loadPortfolio()
+    }, [loadPortfolio])
 
     // Calculate portfolio stats
     const totalValue = portfolio.reduce((sum, card) => sum + (card.currentPrice * card.quantity), 0)
@@ -104,43 +110,62 @@ export default function PortfolioPage() {
         }
     }
 
-    // Add card to portfolio
-    const addToPortfolio = (card: TCGdexCard) => {
-        const newCard: PortfolioCard = {
-            id: Date.now().toString(),
-            cardId: card.id,
+    // Add card to portfolio (with DB persistence)
+    const addToPortfolio = async (card: TCGdexCard) => {
+        if (!portfolioId) return
+
+        const result = await addCardToDb(portfolioId, {
+            tcgdex_id: card.id,
             name: card.name,
-            setName: card.set?.name || 'Unknown Set',
-            image: getCardImageUrl(card, 'high'),
+            set_name: card.set?.name || 'Unknown Set',
+            image_url: getCardImageUrl(card, 'high'),
             quantity: 1,
-            purchasePrice: 10,
-            currentPrice: 12,
-            score: Math.floor(Math.random() * 100),
-            addedAt: new Date().toISOString().split('T')[0]
+            purchase_price: 10,
+            current_price: 12,
+            score: Math.floor(Math.random() * 100)
+        })
+
+        if (result) {
+            await loadPortfolio() // Refresh from DB
         }
-        setPortfolio([...portfolio, newCard])
+
         setShowAddModal(false)
         setSearchQuery('')
         setSearchResults([])
     }
 
-    // Remove card from portfolio
-    const removeFromPortfolio = (id: string) => {
-        setPortfolio(portfolio.filter(card => card.id !== id))
+    // Remove card from portfolio (with DB persistence)
+    const removeFromPortfolio = async (id: string) => {
+        const success = await removeCardFromDb(id)
+        if (success) {
+            setPortfolio(portfolio.filter(card => card.id !== id))
+        }
     }
 
-    // Update quantity
-    const updateQuantity = (id: string, delta: number) => {
-        setPortfolio(portfolio.map(card => {
-            if (card.id === id) {
-                const newQty = Math.max(1, card.quantity + delta)
-                return { ...card, quantity: newQty }
-            }
-            return card
-        }))
+    // Update quantity (with DB persistence)
+    const updateQuantity = async (id: string, delta: number) => {
+        const card = portfolio.find(c => c.id === id)
+        if (!card) return
+
+        const newQty = Math.max(1, card.quantity + delta)
+        const success = await updatePortfolioItemQuantity(id, newQty)
+
+        if (success) {
+            setPortfolio(portfolio.map(c =>
+                c.id === id ? { ...c, quantity: newQty } : c
+            ))
+        }
     }
 
     const avgScoreColors = getScoreColor(avgScore)
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
