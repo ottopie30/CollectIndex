@@ -5,9 +5,9 @@ const BASE_URL = 'https://api.pokemontcg.io/v2/cards'
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
-    const id = params.id
+    const { id } = await context.params
 
     if (!id) {
         return NextResponse.json({ error: 'Card ID required' }, { status: 400 })
