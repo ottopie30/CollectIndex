@@ -46,6 +46,10 @@ ALTER TABLE card_prices ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public read access" ON card_prices
     FOR SELECT USING (true);
 
--- Only service role can insert/update (cron job)
-CREATE POLICY "Service role can manage" ON card_prices
-    FOR ALL USING (auth.role() = 'service_role');
+-- Allow all inserts/updates (cache table, no sensitive data)
+-- The cron endpoint is protected by CRON_SECRET, not RLS
+CREATE POLICY "Allow all writes" ON card_prices
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow all updates" ON card_prices
+    FOR UPDATE USING (true) WITH CHECK (true);

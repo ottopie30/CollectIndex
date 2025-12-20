@@ -49,17 +49,22 @@ export async function GET(request: NextRequest) {
         while (hasMore && page <= MAX_PAGES) {
             console.log(`📄 Fetching page ${page}/${MAX_PAGES}...`)
 
-            const response = await fetch(
-                `${POKEMON_TCG_API}?orderBy=-cardmarket.prices.trendPrice&page=${page}&pageSize=${PAGE_SIZE}`,
-                {
-                    headers: {
-                        'X-Api-Key': apiKey
-                    }
+            // Query expensive cards: filter by set.releaseDate (recent sets have expensive cards)
+            // Then we'll sort by price client-side for first sync
+            const url = `${POKEMON_TCG_API}?q=cardmarket.prices.trendPrice:[10 TO *]&page=${page}&pageSize=${PAGE_SIZE}`
+            console.log('API URL:', url)
+
+            const response = await fetch(url, {
+                headers: {
+                    'X-Api-Key': apiKey
                 }
-            )
+            })
+
+            console.log('API Response Status:', response.status)
 
             if (!response.ok) {
-                console.error(`API error on page ${page}: ${response.status}`)
+                const errorText = await response.text()
+                console.error(`API error on page ${page}: ${response.status}`, errorText)
                 // If rate limited, wait and retry
                 if (response.status === 429) {
                     console.log('Rate limited, waiting 5s...')
