@@ -7,7 +7,7 @@ const API_KEY = process.env.POKEMON_TCG_API_KEY || ''
 const SET_MAPPING: Record<string, string> = {
     'sv8pt5': 'sv8pt5', 'sv8': 'sv8', 'sv7': 'sv7',
     'sv6pt5': 'sv6pt5', 'sv6': 'sv6', 'sv5': 'sv5',
-    'sv4pt5': 'sv4pt5', 'sv4': 'sv4', 'sv3pt5': 'sv3pt5',
+    'sv4pt5': 'sv4pt5', 'sv4': 'sv4', 'sv3pt5': 'sv3pt5', // 151
     'sv3': 'sv3', 'sv2': 'sv2', 'sv1': 'sv1',
     'swsh12pt5': 'swsh12pt5'
 }
@@ -20,10 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Parse TCGdex ID (e.g., "sv3pt5-1" or "sv3pt5-001")
         const parts = tcgdexId.split('-')
-        // Handle cases where ID might have multiple parts? Usually Set-Id
-        // We'll take everything before the LAST dash as Set, and AFTER last dash as Number
         const number = parts.pop()
         const setId = parts.join('-')
 
@@ -31,12 +28,27 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
         }
 
-        // Map to API Set ID
         const apiSetId = SET_MAPPING[setId] || setId
 
-        // Query: exact match
-        const query = `set.id:${apiSetId} number:${number}`
-        const url = `${POKEMON_TCG_API}?q=${encodeURIComponent(query)}&select=id,name,cardmarket,images`
+        // Strategy: Try multiple query formats in PARALLEL to ensure we find it
+        // 1. Exact match (set.id:X number:Y)
+        // 2. Zero padded match (set.id:X number:00Y) -> for '6' try '006'
+        // 3. Simple padded match (set.id:X number:0Y) -> for '6' try '06'
+
+        const queries = [`set.id:${apiSetId} number:${number}`]
+
+        // Add padding variations if number is numeric
+        if (!isNaN(parseInt(number))) {
+            const numVal = parseInt(number)
+            if (numVal < 100) queries.push(`set.id:${apiSetId} number:${number.padStart(3, '0')}`) // 006
+            if (numVal < 10) queries.push(`set.id:${apiSetId} number:${number.padStart(2, '0')}`)  // 06
+        }
+
+        // Construct OR query for single efficient request
+        // query = (set.id:X number:Y) OR (set.id:X number:00Y) ...
+        const combinedQuery = queries.map(q => `(${q})`).join(' OR ')
+
+        const url = `${POKEMON_TCG_API}?q=${encodeURIComponent(combinedQuery)}&select=id,name,cardmarket,images`
 
         console.log(`[API Single] Fetching: ${url}`)
 
@@ -47,10 +59,7 @@ export async function GET(request: NextRequest) {
         if (!response.ok) {
             const text = await response.text()
             console.error(`[API Single] Error ${response.status}: ${text}`)
-
-            // If 404/402/429, don't 500 the client, just return "not found" or error
             if (response.status === 404) return NextResponse.json({ found: false })
-
             return NextResponse.json({ found: false, error: `Upstream API ${response.status}` }, { status: 200 })
         }
 
@@ -58,11 +67,11 @@ export async function GET(request: NextRequest) {
         const card = data.data?.[0]
 
         if (!card) {
-            console.log(`[API Single] No card found for query: ${query}`)
-            // Try fuzzy fallback? "name" based? 
-            // For now, keep it simple as requested
+            console.log(`[API Single] No card found for query: ${combinedQuery}`)
             return NextResponse.json({ found: false })
         }
+
+        console.log(`[API Single] HIT! Found: ${card.name} (${card.id}) Price: ${card.cardmarket?.prices?.trendPrice}€`)
 
         // Return simplified data
         return NextResponse.json({
