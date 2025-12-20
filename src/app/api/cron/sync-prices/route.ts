@@ -8,7 +8,7 @@ import { bulkUpsertPrices, CachedPrice } from '@/lib/priceCache'
 
 const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2/cards'
 const PAGE_SIZE = 250  // Max allowed by API
-const PAGES_PER_SYNC = 4  // Sync 4 pages per cron call (1000 cards, ~50s)
+const PAGES_PER_SYNC = 20  // Sync 20 pages per cron call (5000 cards, ~4min with delays)
 
 // Rate limiting: wait between requests to avoid 429s
 const DELAY_MS = 500
@@ -19,7 +19,7 @@ function delay(ms: number): Promise<void> {
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 60  // 60s timeout (Vercel hobby plan)
+export const maxDuration = 300  // 5 minute timeout (Vercel Pro)
 
 export async function GET(request: NextRequest) {
     // Verify cron secret (Vercel sends this automatically)

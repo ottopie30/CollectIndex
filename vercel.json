@@ -5,80 +5,16 @@
             "schedule": "0 0 * * *"
         },
         {
-            "path": "/api/cron/sync-prices?page=5",
-            "schedule": "3 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=9",
-            "schedule": "6 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=13",
-            "schedule": "9 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=17",
-            "schedule": "12 0 * * *"
-        },
-        {
             "path": "/api/cron/sync-prices?page=21",
-            "schedule": "15 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=25",
-            "schedule": "18 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=29",
-            "schedule": "21 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=33",
-            "schedule": "24 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=37",
-            "schedule": "27 0 * * *"
+            "schedule": "5 0 * * *"
         },
         {
             "path": "/api/cron/sync-prices?page=41",
-            "schedule": "30 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=45",
-            "schedule": "33 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=49",
-            "schedule": "36 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=53",
-            "schedule": "39 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=57",
-            "schedule": "42 0 * * *"
+            "schedule": "10 0 * * *"
         },
         {
             "path": "/api/cron/sync-prices?page=61",
-            "schedule": "45 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=65",
-            "schedule": "48 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=69",
-            "schedule": "51 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=73",
-            "schedule": "54 0 * * *"
-        },
-        {
-            "path": "/api/cron/sync-prices?page=77",
-            "schedule": "57 0 * * *"
+            "schedule": "15 0 * * *"
         }
     ]
 }
