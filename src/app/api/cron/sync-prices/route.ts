@@ -1,14 +1,14 @@
 // Cron Job: Sync top 20,000 most expensive cards' prices daily
 // Protected by CRON_SECRET header
 // Run at midnight UTC via Vercel Cron
+// Supports ?page=N to sync specific page (for parallel cron jobs)
 
 import { NextRequest, NextResponse } from 'next/server'
 import { bulkUpsertPrices, CachedPrice } from '@/lib/priceCache'
 
 const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2/cards'
 const PAGE_SIZE = 250  // Max allowed by API
-const MAX_CARDS = 20000
-const MAX_PAGES = Math.ceil(MAX_CARDS / PAGE_SIZE)  // 80 pages
+const PAGES_PER_SYNC = 3  // Sync 3 pages per cron call (750 cards, ~45s)
 
 // Rate limiting: wait between requests to avoid 429s
 const DELAY_MS = 500
@@ -19,7 +19,7 @@ function delay(ms: number): Promise<void> {
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 300  // 5 minute max (enough for 80 pages with delays)
+export const maxDuration = 60  // 60s timeout (Vercel hobby plan)
 
 export async function GET(request: NextRequest) {
     // Verify cron secret (Vercel sends this automatically)
@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    console.log('🚀 Starting price sync job...')
+    // Get starting page from query param (default: 1)
+    const startPage = parseInt(request.nextUrl.searchParams.get('page') || '1')
+    const endPage = startPage + PAGES_PER_SYNC - 1  // Sync 3 pages
+
+    console.log(`🚀 Starting price sync: pages ${startPage}-${endPage}...`)
     const startTime = Date.now()
 
     const apiKey = process.env.POKEMON_TCG_API_KEY
@@ -42,12 +46,11 @@ export async function GET(request: NextRequest) {
     }
 
     let totalSynced = 0
-    let page = 1
-    let hasMore = true
+    let page = startPage
 
     try {
-        while (hasMore && page <= MAX_PAGES) {
-            console.log(`📄 Fetching page ${page}/${MAX_PAGES}...`)
+        while (page <= endPage) {
+            console.log(`📄 Fetching page ${page}...`)
 
             // Query expensive cards: filter by set.releaseDate (recent sets have expensive cards)
             // Then we'll sort by price client-side for first sync
@@ -78,7 +81,7 @@ export async function GET(request: NextRequest) {
             const cards = data.data || []
 
             if (cards.length === 0) {
-                hasMore = false
+                console.log('No more cards, stopping.')
                 break
             }
 
@@ -105,9 +108,10 @@ export async function GET(request: NextRequest) {
 
             console.log(`✅ Page ${page}: synced ${synced} cards (total: ${totalSynced})`)
 
-            // Check if we've reached the end
+            // Check if we've reached the end of available data
             if (cards.length < PAGE_SIZE) {
-                hasMore = false
+                console.log('Reached end of data.')
+                break
             }
 
             page++
