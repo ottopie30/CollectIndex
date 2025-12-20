@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
 
         const mappings = []
         let page = 1
+        const pageSize = 50 // Reduced from 250 to prevent Vercel 504 Timeouts
         let hasMore = true
 
         // Debug stats
@@ -87,8 +88,8 @@ export async function GET(request: NextRequest) {
 
         while (hasMore) {
             // Fetch from Pokemon TCG API with optimized payload (select only needed fields)
-            // This prevents 504 Gateway Timeouts by reducing response size by ~90%
-            const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}&select=id,name,number,set,cardmarket,images`, {
+            // AND reduced page size (chunking)
+            const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}&pageSize=${pageSize}&select=id,name,number,set,cardmarket,images`, {
                 headers: { 'X-Api-Key': API_KEY }
             })
 
@@ -109,7 +110,6 @@ export async function GET(request: NextRequest) {
 
             for (const card of cards) {
                 // Extract Cardmarket ID from URL
-                // URL format: https://www.cardmarket.com/en/Pokemon/Products/Singles/Set-Name/Card-Name?idProduct=12345
                 const cmUrl = card.cardmarket?.url
 
                 if (cmUrl) {
@@ -118,9 +118,6 @@ export async function GET(request: NextRequest) {
                     if (match && match[1]) {
                         const cmId = parseInt(match[1])
 
-                        // Construct TCGdex ID (usually set-number)
-                        // Note: We might need to adjust this depending on how TCGdex IDs are formatted in your DB
-                        // Assuming format: "set-number" e.g., "sv3pt5-1"
                         const localId = card.number
                         const tcgdexId = `${setId}-${localId}`
 
@@ -137,7 +134,7 @@ export async function GET(request: NextRequest) {
             }
 
             // Check if we reached the end
-            if (cards.length < 250) { // Default page size
+            if (cards.length < pageSize) {
                 hasMore = false
             } else {
                 page++
@@ -162,7 +159,8 @@ export async function GET(request: NextRequest) {
             debug: {
                 totalFetched,
                 cardsWithCm,
-                apiSetId
+                apiSetId,
+                pageSize // Return strict page size for verification
             },
             sample: mappings.slice(0, 5)
         })
