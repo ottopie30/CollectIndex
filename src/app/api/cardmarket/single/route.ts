@@ -19,6 +19,13 @@ export async function GET(request: NextRequest) {
         const parts = tcgdexId.split('-')
         const number = parts.pop()
         const setId = parts.join('-')
+
+        if (!setId || !number) {
+            return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 })
+        }
+
+        // Fix for TS Error: Ensure 'number' is treated as string
+        const cardNum = number as string
         const apiSetId = SET_MAPPING[setId] || setId
 
         // FALLBACK CHAIN STRATEGY
@@ -30,7 +37,7 @@ export async function GET(request: NextRequest) {
 
         // ATTEMPT 1: Search by ID (e.g. "sv3pt5-6")
         try {
-            const idUrl = `${POKEMON_TCG_API}/${apiSetId}-${number}?select=id,name,cardmarket,images`
+            const idUrl = `${POKEMON_TCG_API}/${apiSetId}-${cardNum}?select=id,name,cardmarket,images`
             console.log(`[API Single] Attempt 1 (ID): ${idUrl}`)
             const res = await fetch(idUrl, { headers: { 'X-Api-Key': API_KEY } })
             if (res.ok) {
@@ -42,9 +49,9 @@ export async function GET(request: NextRequest) {
 
         // ATTEMPT 2 & 3: Search by Query (Shotgun)
         if (!foundCard) {
-            const queries = [`set.id:${apiSetId} number:${number}`]
-            if (!isNaN(parseInt(number))) {
-                queries.push(`set.id:${apiSetId} number:${number.padStart(3, '0')}`)
+            const queries = [`set.id:${apiSetId} number:${cardNum}`]
+            if (!isNaN(parseInt(cardNum))) {
+                queries.push(`set.id:${apiSetId} number:${cardNum.padStart(3, '0')}`)
             }
             const combinedQuery = queries.map(q => `(${q})`).join(' OR ')
             const queryUrl = `${POKEMON_TCG_API}?q=${encodeURIComponent(combinedQuery)}&select=id,name,cardmarket,images`
