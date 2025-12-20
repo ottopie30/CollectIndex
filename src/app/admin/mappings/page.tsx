@@ -15,7 +15,7 @@ interface SetInfo {
 
 interface LogEntry {
     set: string
-    status: 'success' | 'error' | 'pending'
+    status: 'success' | 'error' | 'pending' | 'retry'
     message: string
     details?: any
 }
@@ -59,6 +59,38 @@ export default function MappingAdminPage() {
         }
     }
 
+    // Helper to sync a single set with retries
+    const syncSet = async (set: SetInfo, retryCount = 0): Promise<{ success: boolean, data?: any, error?: string }> => {
+        try {
+            const res = await fetch(`/api/cardmarket/sync-mappings?set=${set.id}`)
+            const text = await res.text()
+
+            // Handle Gateway Timeout specially
+            if (res.status === 504) {
+                throw new Error('Gateway Timeout (API too slow)')
+            }
+
+            let data
+            try {
+                data = JSON.parse(text)
+            } catch (e) {
+                throw new Error(`API Error (${res.status}): ${text.slice(0, 50)}...`)
+            }
+
+            if (data.success) {
+                return { success: true, data }
+            } else {
+                throw new Error(data.error || 'Unknown error')
+            }
+        } catch (e: any) {
+            if (retryCount < 2) {
+                // Return generic error to trigger retry loop
+                return { success: false, error: e.message }
+            }
+            return { success: false, error: e.message }
+        }
+    }
+
     // Sync all sets one by one
     const syncAll = async () => {
         if (!confirm(`Are you sure you want to map ALL ${sets.length} sets? This will take a while.`)) return
@@ -74,38 +106,44 @@ export default function MappingAdminPage() {
             // Add pending log
             setLogs(prev => [{ set: set.name, status: 'pending', message: 'Starting...' }, ...prev])
 
-            try {
-                const res = await fetch(`/api/cardmarket/sync-mappings?set=${set.id}`)
-                const text = await res.text()
+            let attempt = 0
+            let result
 
-                let data
-                try {
-                    data = JSON.parse(text)
-                } catch (e) {
-                    throw new Error(`API Error (${res.status}): ${text.slice(0, 50)}...`)
-                }
-
-                if (data.success) {
+            // Try up to 3 times
+            while (attempt < 3) {
+                if (attempt > 0) {
                     setLogs(prev => {
                         const next = [...prev]
-                        next[0] = {
-                            set: set.name,
-                            status: 'success',
-                            message: `Mapped ${data.mapped} cards`,
-                            details: data
-                        }
+                        next[0] = { ...next[0], status: 'retry', message: `Retrying (${attempt}/3)...` }
                         return next
                     })
-                } else {
-                    throw new Error(data.error || 'Unknown error')
+                    // Wait longer between retries
+                    await new Promise(r => setTimeout(r, 2000 * attempt))
                 }
-            } catch (e: any) {
+
+                result = await syncSet(set, attempt)
+                if (result.success) break
+                attempt++
+            }
+
+            if (result?.success) {
+                setLogs(prev => {
+                    const next = [...prev]
+                    next[0] = {
+                        set: set.name,
+                        status: 'success',
+                        message: `Mapped ${result.data.mapped} cards`,
+                        details: result.data
+                    }
+                    return next
+                })
+            } else {
                 setLogs(prev => {
                     const next = [...prev]
                     next[0] = {
                         set: set.name,
                         status: 'error',
-                        message: e.message
+                        message: result?.error || 'Failed after retries'
                     }
                     return next
                 })
@@ -224,12 +262,14 @@ export default function MappingAdminPage() {
                                 {logs.map((log, i) => (
                                     <div key={i} className={`p-3 flex gap-3 ${log.status === 'error' ? 'bg-red-900/10 text-red-400' :
                                             log.status === 'success' ? 'bg-green-900/10 text-green-400' :
-                                                'text-slate-400'
+                                                log.status === 'retry' ? 'bg-yellow-900/10 text-yellow-400' :
+                                                    'text-slate-400'
                                         }`}>
                                         <div className="w-4 h-4 mt-0.5 flex-shrink-0">
                                             {log.status === 'success' && '✅'}
                                             {log.status === 'error' && '❌'}
                                             {log.status === 'pending' && '⏳'}
+                                            {log.status === 'retry' && '🔄'}
                                         </div>
                                         <div>
                                             <div className="font-bold text-slate-300">{log.set}</div>
