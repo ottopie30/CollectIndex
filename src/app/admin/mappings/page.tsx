@@ -1,0 +1,227 @@
+'use client'
+
+import { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+
+interface SetInfo {
+    id: string
+    name: string
+    printedTotal: number
+    releaseDate: string
+    images: {
+        symbol: string
+        logo: string
+    }
+}
+
+interface LogEntry {
+    set: string
+    status: 'success' | 'error' | 'pending'
+    message: string
+    details?: any
+}
+
+export default function MappingAdminPage() {
+    const [sets, setSets] = useState<SetInfo[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [isSyncing, setIsSyncing] = useState(false)
+    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [progress, setProgress] = useState(0)
+
+    // Load available sets from API
+    const loadSets = async () => {
+        setIsLoading(true)
+        try {
+            const res = await fetch('/api/cardmarket/sync-mappings?mode=list')
+            const data = await res.json()
+            if (data.success) {
+                // Sort by release date (newest first)
+                const sorted = data.sets.sort((a: SetInfo, b: SetInfo) =>
+                    new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
+                )
+                setSets(sorted)
+            }
+        } catch (e) {
+            console.error('Failed to load sets', e)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    // Sync all sets one by one
+    const syncAll = async () => {
+        if (!confirm(`Are you sure you want to map ALL ${sets.length} sets? This will take a while.`)) return
+
+        setIsSyncing(true)
+        setLogs([])
+        setProgress(0)
+
+        const total = sets.length
+        let completed = 0
+
+        for (const set of sets) {
+            // Add pending log
+            setLogs(prev => [{ set: set.name, status: 'pending', message: 'Starting...' }, ...prev])
+
+            try {
+                const res = await fetch(`/api/cardmarket/sync-mappings?set=${set.id}`)
+                const data = await res.json()
+
+                if (data.success) {
+                    setLogs(prev => {
+                        const next = [...prev]
+                        next[0] = {
+                            set: set.name,
+                            status: 'success',
+                            message: `Mapped ${data.mapped} cards`,
+                            details: data
+                        }
+                        return next
+                    })
+                } else {
+                    throw new Error(data.error || 'Unknown error')
+                }
+            } catch (e: any) {
+                setLogs(prev => {
+                    const next = [...prev]
+                    next[0] = {
+                        set: set.name,
+                        status: 'error',
+                        message: e.message
+                    }
+                    return next
+                })
+            }
+
+            completed++
+            setProgress((completed / total) * 100)
+
+            // Respect rate limits - wait 1s between sets
+            await new Promise(r => setTimeout(r, 1000))
+        }
+
+        setIsSyncing(false)
+        alert('Complete! Check logs for details.')
+    }
+
+    return (
+        <div className="container mx-auto p-8 space-y-8 min-h-screen bg-slate-950 text-white">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        Cardmarket Mapping Center
+                    </h1>
+                    <p className="text-slate-400 mt-2">
+                        Manage relations between TCGdex and Cardmarket IDs
+                    </p>
+                </div>
+                <div className="flex gap-4">
+                    <Button
+                        onClick={loadSets}
+                        disabled={isLoading || isSyncing}
+                        className="bg-slate-800 hover:bg-slate-700"
+                    >
+                        {isLoading ? 'Loading...' : 'Load Available Sets'}
+                    </Button>
+                    <Button
+                        onClick={syncAll}
+                        disabled={sets.length === 0 || isSyncing}
+                        className="bg-blue-600 hover:bg-blue-500"
+                    >
+                        {isSyncing ? `Syncing (${Math.round(progress)}%)` : 'Sync ALL Mappings'}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Progress Bar */}
+            {isSyncing && (
+                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                        className="bg-blue-500 h-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Available Sets List */}
+                <Card className="bg-slate-900 border-slate-800 h-[600px] overflow-hidden flex flex-col">
+                    <CardHeader className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
+                        <CardTitle className="text-slate-200 flex justify-between">
+                            <span>Available Sets ({sets.length})</span>
+                            {sets.length > 0 && <Badge variant="outline">{sets[0].releaseDate}</Badge>}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="overflow-y-auto p-0 flex-1">
+                        {sets.length === 0 ? (
+                            <div className="p-8 text-center text-slate-500">
+                                No sets loaded. Click "Load Available Sets" to start.
+                            </div>
+                        ) : (
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-800/50 text-slate-400 sticky top-0">
+                                    <tr>
+                                        <th className="p-3">Symbol</th>
+                                        <th className="p-3">Set Name</th>
+                                        <th className="p-3">ID</th>
+                                        <th className="p-3">Cards</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-800/50">
+                                    {sets.map(set => (
+                                        <tr key={set.id} className="hover:bg-slate-800/30 transition-colors">
+                                            <td className="p-3">
+                                                <img src={set.images.symbol} className="w-6 h-6 object-contain" alt="set" />
+                                            </td>
+                                            <td className="p-3 font-medium text-slate-200">
+                                                {set.name}
+                                                <div className="text-xs text-slate-500">{set.releaseDate}</div>
+                                            </td>
+                                            <td className="p-3 text-mono text-slate-400">{set.id}</td>
+                                            <td className="p-3 text-slate-400">{set.printedTotal}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Operation Logs */}
+                <Card className="bg-slate-900 border-slate-800 h-[600px] overflow-hidden flex flex-col">
+                    <CardHeader className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
+                        <CardTitle className="text-slate-200">Sync Logs</CardTitle>
+                    </CardHeader>
+                    <CardContent className="overflow-y-auto p-0 flex-1 font-mono text-sm">
+                        {logs.length === 0 ? (
+                            <div className="p-8 text-center text-slate-500">
+                                Logs will appear here during sync...
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-800/50">
+                                {logs.map((log, i) => (
+                                    <div key={i} className={`p-3 flex gap-3 ${log.status === 'error' ? 'bg-red-900/10 text-red-400' :
+                                            log.status === 'success' ? 'bg-green-900/10 text-green-400' :
+                                                'text-slate-400'
+                                        }`}>
+                                        <div className="w-4 h-4 mt-0.5 flex-shrink-0">
+                                            {log.status === 'success' && '✅'}
+                                            {log.status === 'error' && '❌'}
+                                            {log.status === 'pending' && '⏳'}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-slate-300">{log.set}</div>
+                                            <div>{log.message}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    )
+}

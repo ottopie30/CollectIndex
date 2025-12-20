@@ -41,6 +41,24 @@ const SET_MAPPING: Record<string, string> = {
 
 export async function GET(request: NextRequest) {
     const setId = request.nextUrl.searchParams.get('set')
+    const mode = request.nextUrl.searchParams.get('mode')
+
+    // Mode: List All Sets
+    if (mode === 'list') {
+        try {
+            console.log('🔄 Fetching list of all sets...')
+            const response = await fetch(`${POKEMON_TCG_API.replace('/cards', '/sets')}`, {
+                headers: { 'X-Api-Key': API_KEY || '' }
+            })
+            const data = await response.json()
+            return NextResponse.json({
+                success: true,
+                sets: data.data || []
+            })
+        } catch (error: any) {
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+    }
 
     if (!setId) {
         return NextResponse.json({
