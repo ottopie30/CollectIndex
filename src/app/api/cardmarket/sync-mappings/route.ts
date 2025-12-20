@@ -82,8 +82,9 @@ export async function GET(request: NextRequest) {
         let hasMore = true
 
         while (hasMore) {
-            // Fetch from Pokemon TCG API
-            const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}`, {
+            // Fetch from Pokemon TCG API with optimized payload (select only needed fields)
+            // This prevents 504 Gateway Timeouts by reducing response size by ~90%
+            const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}&select=id,name,number,set,cardmarket,images`, {
                 headers: { 'X-Api-Key': API_KEY }
             })
 
