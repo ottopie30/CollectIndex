@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+// Removed missing component imports
+// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+// import { Button } from '@/components/ui/button'
+// import { Badge } from '@/components/ui/badge'
 
 interface SetInfo {
     id: string
@@ -118,20 +119,20 @@ export default function MappingAdminPage() {
                     </p>
                 </div>
                 <div className="flex gap-4">
-                    <Button
+                    <button
                         onClick={loadSets}
                         disabled={isLoading || isSyncing}
-                        className="bg-slate-800 hover:bg-slate-700"
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md font-medium text-sm disabled:opacity-50 transition-colors"
                     >
                         {isLoading ? 'Loading...' : 'Load Available Sets'}
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                         onClick={syncAll}
                         disabled={sets.length === 0 || isSyncing}
-                        className="bg-blue-600 hover:bg-blue-500"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-md font-medium text-sm disabled:opacity-50 transition-colors"
                     >
                         {isSyncing ? `Syncing (${Math.round(progress)}%)` : 'Sync ALL Mappings'}
-                    </Button>
+                    </button>
                 </div>
             </div>
 
@@ -146,15 +147,19 @@ export default function MappingAdminPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Available Sets List */}
-                <Card className="bg-slate-900 border-slate-800 h-[600px] overflow-hidden flex flex-col">
-                    <CardHeader className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
-                        <CardTitle className="text-slate-200 flex justify-between">
+                {/* Available Sets List - Replaced Card with Divs */}
+                <div className="bg-slate-900 border border-slate-800 rounded-lg h-[600px] overflow-hidden flex flex-col shadow-sm">
+                    <div className="bg-slate-900 border-b border-slate-800 p-6 sticky top-0 z-10">
+                        <div className="text-xl font-semibold text-slate-200 flex justify-between items-center">
                             <span>Available Sets ({sets.length})</span>
-                            {sets.length > 0 && <Badge variant="outline">{sets[0].releaseDate}</Badge>}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="overflow-y-auto p-0 flex-1">
+                            {sets.length > 0 && (
+                                <span className="text-xs font-semibold px-2.5 py-0.5 rounded border border-slate-700 bg-slate-800 text-slate-100">
+                                    {sets[0].releaseDate}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <div className="overflow-y-auto p-0 flex-1">
                         {sets.length === 0 ? (
                             <div className="p-8 text-center text-slate-500">
                                 No sets loaded. Click "Load Available Sets" to start.
@@ -186,15 +191,15 @@ export default function MappingAdminPage() {
                                 </tbody>
                             </table>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                {/* Operation Logs */}
-                <Card className="bg-slate-900 border-slate-800 h-[600px] overflow-hidden flex flex-col">
-                    <CardHeader className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10">
-                        <CardTitle className="text-slate-200">Sync Logs</CardTitle>
-                    </CardHeader>
-                    <CardContent className="overflow-y-auto p-0 flex-1 font-mono text-sm">
+                {/* Operation Logs - Replaced Card with Divs */}
+                <div className="bg-slate-900 border border-slate-800 rounded-lg h-[600px] overflow-hidden flex flex-col shadow-sm">
+                    <div className="bg-slate-900 border-b border-slate-800 p-6 sticky top-0 z-10">
+                        <div className="text-xl font-semibold text-slate-200">Sync Logs</div>
+                    </div>
+                    <div className="overflow-y-auto p-0 flex-1 font-mono text-sm">
                         {logs.length === 0 ? (
                             <div className="p-8 text-center text-slate-500">
                                 Logs will appear here during sync...
@@ -219,8 +224,8 @@ export default function MappingAdminPage() {
                                 ))}
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
         </div>
     )

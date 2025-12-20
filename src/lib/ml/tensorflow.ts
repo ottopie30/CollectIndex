@@ -7,7 +7,8 @@ const isServer = typeof window === 'undefined'
 if (isServer) {
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        require('@tensorflow/tfjs-node')
+        // require('@tensorflow/tfjs-node')
+        // console.log('Skipping @tensorflow/tfjs-node load for Vercel build compatibility')
     } catch (e) {
         console.warn('Failed to load @tensorflow/tfjs-node, falling back to vanilla tfjs', e)
     }
