@@ -8,7 +8,7 @@ import { bulkUpsertPrices, CachedPrice } from '@/lib/priceCache'
 
 const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2/cards'
 const PAGE_SIZE = 250  // Max allowed by API
-const PAGES_PER_SYNC = 3  // Sync 3 pages per cron call (750 cards, ~45s)
+const PAGES_PER_SYNC = 4  // Sync 4 pages per cron call (1000 cards, ~50s)
 
 // Rate limiting: wait between requests to avoid 429s
 const DELAY_MS = 500
