@@ -51,20 +51,40 @@ export async function GET(request: NextRequest) {
         // Mode: List All Sets
         if (mode === 'list') {
             console.log('🔄 Fetching list of all sets...')
-            const response = await fetch(`${POKEMON_TCG_API.replace('/cards', '/sets')}`, {
-                headers: { 'X-Api-Key': API_KEY }
-            })
+            try {
+                // Try API first with short timeout
+                const response = await fetch(`${POKEMON_TCG_API.replace('/cards', '/sets')}`, {
+                    headers: { 'X-Api-Key': API_KEY },
+                    signal: AbortSignal.timeout(5000)
+                })
 
-            if (!response.ok) {
-                const text = await response.text()
-                throw new Error(`Pokemon API error (${response.status}): ${text}`)
+                if (!response.ok) {
+                    throw new Error(`API ${response.status} ${response.statusText}`)
+                }
+
+                const data = await response.json()
+                return NextResponse.json({
+                    success: true,
+                    sets: data.data || []
+                })
+            } catch (e: any) {
+                console.warn('⚠️ API Unreachable/Timeout, using local set list fallback', e.message)
+
+                // Fallback to local list from SET_MAPPING to allow Fast Mode to work
+                const localSets = Object.keys(SET_MAPPING).map(id => ({
+                    id,
+                    name: `Set ${id.toUpperCase()} (API Offline)`,
+                    releaseDate: '2023-01-01',
+                    printedTotal: '?',
+                    images: { symbol: 'https://images.pokemontcg.io/sv3pt5/symbol.png', logo: '' }
+                }))
+
+                return NextResponse.json({
+                    success: true,
+                    sets: localSets,
+                    warning: `API Issue (${e.message}) - Showing local sets only. USE FAST MODE.`
+                })
             }
-
-            const data = await response.json()
-            return NextResponse.json({
-                success: true,
-                sets: data.data || []
-            })
         }
 
         if (!setId) {
