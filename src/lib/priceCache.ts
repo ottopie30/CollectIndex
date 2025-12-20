@@ -61,14 +61,20 @@ export async function getCachedPriceBySetAndNumber(
     number: string,
     maxAgeHours = 24
 ): Promise<CachedPrice | null> {
-    console.log(`🔍 Cache lookup: set="${setName}" number="${number}"`)
+    // Normalize set name: "Base Set" -> "Base", remove common suffixes
+    const normalizedSet = setName
+        .replace(/\s+Set$/i, '')  // Remove " Set" suffix
+        .replace(/\s+/g, ' ')      // Normalize whitespace
+        .trim()
+
+    console.log(`🔍 Cache lookup: set="${normalizedSet}" (from "${setName}") number="${number}"`)
 
     try {
-        // Try exact set match first
+        // Try with normalized set name
         let { data, error } = await supabase
             .from('card_prices')
             .select('*')
-            .ilike('set_name', `%${setName}%`)
+            .ilike('set_name', `%${normalizedSet}%`)
             .eq('number', number)
             .order('trend_price', { ascending: false })
             .limit(1)
