@@ -11,12 +11,9 @@ import { createClient } from '@supabase/supabase-js'
  */
 
 const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2/cards'
-const API_KEY = process.env.POKEMON_TCG_API_KEY
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const API_KEY = process.env.POKEMON_TCG_API_KEY || ''
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // Map TCGdex Set IDs to Pokemon TCG API Set IDs
 // TODO: Expand this list or fetch dynamically
@@ -40,37 +37,46 @@ const SET_MAPPING: Record<string, string> = {
 }
 
 export async function GET(request: NextRequest) {
-    const setId = request.nextUrl.searchParams.get('set')
-    const mode = request.nextUrl.searchParams.get('mode')
+    try {
+        // Create client inside request to handle env var changes/errors gracefully
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
+            throw new Error('Missing Supabase environment variables')
+        }
 
-    // Mode: List All Sets
-    if (mode === 'list') {
-        try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
+
+        const setId = request.nextUrl.searchParams.get('set')
+        const mode = request.nextUrl.searchParams.get('mode')
+
+        // Mode: List All Sets
+        if (mode === 'list') {
             console.log('🔄 Fetching list of all sets...')
             const response = await fetch(`${POKEMON_TCG_API.replace('/cards', '/sets')}`, {
-                headers: { 'X-Api-Key': API_KEY || '' }
+                headers: { 'X-Api-Key': API_KEY }
             })
+
+            if (!response.ok) {
+                const text = await response.text()
+                throw new Error(`Pokemon API error (${response.status}): ${text}`)
+            }
+
             const data = await response.json()
             return NextResponse.json({
                 success: true,
                 sets: data.data || []
             })
-        } catch (error: any) {
-            return NextResponse.json({ error: error.message }, { status: 500 })
         }
-    }
 
-    if (!setId) {
-        return NextResponse.json({
-            message: 'Provide ?set=TCGDEX_SET_ID (e.g., sv3pt5)',
-            supportedSets: Object.keys(SET_MAPPING)
-        })
-    }
+        if (!setId) {
+            return NextResponse.json({
+                message: 'Provide ?set=TCGDEX_SET_ID (e.g., sv3pt5)',
+                supportedSets: Object.keys(SET_MAPPING)
+            })
+        }
 
-    const apiSetId = SET_MAPPING[setId] || setId // Fallback to same ID
-    console.log(`🔄 Mapping set ${setId} (API: ${apiSetId})...`)
+        const apiSetId = SET_MAPPING[setId] || setId // Fallback to same ID
+        console.log(`🔄 Mapping set ${setId} (API: ${apiSetId})...`)
 
-    try {
         const mappings = []
         let page = 1
         let hasMore = true
@@ -78,8 +84,13 @@ export async function GET(request: NextRequest) {
         while (hasMore) {
             // Fetch from Pokemon TCG API
             const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}`, {
-                headers: { 'X-Api-Key': API_KEY || '' }
+                headers: { 'X-Api-Key': API_KEY }
             })
+
+            if (!response.ok) {
+                const text = await response.text()
+                throw new Error(`Pokemon API error (${response.status}) for set ${apiSetId}: ${text}`)
+            }
 
             const data = await response.json()
             const cards = data.data || []
@@ -146,7 +157,7 @@ export async function GET(request: NextRequest) {
     } catch (error: any) {
         console.error('❌ Mapping failed:', error)
         return NextResponse.json(
-            { error: error.message },
+            { error: error.message || 'Internal Server Error' },
             { status: 500 }
         )
     }
