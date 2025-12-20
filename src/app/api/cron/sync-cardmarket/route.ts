@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { fetchPriceGuide, CardmarketPriceGuide } from '@/lib/cardmarket'
+import { fetchPriceGuide } from '@/lib/cardmarket'
 
-// Supabase admin client
+/**
+ * Cardmarket Daily Price Sync
+ * 
+ * This cron job fetches ALL prices from Cardmarket's public PriceGuide
+ * in a SINGLE HTTP call (~180,000 prices in one 13MB JSON file)
+ * 
+ * Much more efficient than individual API calls!
+ */
+
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -11,126 +19,125 @@ const supabase = createClient(
 const CRON_SECRET = process.env.CRON_SECRET
 
 export async function GET(request: NextRequest) {
-    // Verify cron secret
+    // Verify cron secret (Vercel sends this)
     const authHeader = request.headers.get('authorization')
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (process.env.NODE_ENV === 'production' && CRON_SECRET) {
+        if (authHeader !== `Bearer ${CRON_SECRET}`) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
     }
 
     const startTime = Date.now()
-    console.log('🔄 Starting Cardmarket price sync...')
+    console.log('🔄 Starting Cardmarket daily price sync...')
 
     try {
-        // 1. Fetch all Cardmarket price guides
+        // 1. Fetch ALL prices from Cardmarket (one HTTP call!)
         const priceGuide = await fetchPriceGuide()
-        console.log(`📦 Loaded ${priceGuide.size} price entries`)
+        console.log(`💰 Loaded ${priceGuide.size} price entries from Cardmarket`)
 
         // 2. Get today's date
         const today = new Date().toISOString().split('T')[0]
 
-        // 3. Get all mapped card IDs from database
+        // 3. Get all cards we have mappings for
         const { data: mappings, error: mappingError } = await supabase
             .from('cardmarket_mapping')
-            .select('cardmarket_id')
+            .select('cardmarket_id, tcgdex_id, card_name')
 
         if (mappingError) {
             console.error('❌ Failed to fetch mappings:', mappingError)
             throw mappingError
         }
 
-        if (!mappings || mappings.length === 0) {
-            console.log('⚠️ No card mappings found. Syncing top 1000 prices instead.')
-            // If no mappings exist, store top 1000 entries (highest trend prices)
-            const topPrices = Array.from(priceGuide.values())
-                .filter(p => p.trend !== null && p.trend > 10) // Only cards worth > 10€
-                .sort((a, b) => (b.trend || 0) - (a.trend || 0))
-                .slice(0, 1000)
+        console.log(`📋 Found ${mappings?.length || 0} mapped cards`)
 
-            const priceRecords = topPrices.map(p => formatPriceRecord(p, today))
-
-            const { error: insertError } = await supabase
-                .from('price_history')
-                .upsert(priceRecords, { onConflict: 'cardmarket_id,date' })
-
-            if (insertError) {
-                console.error('❌ Failed to insert prices:', insertError)
-                throw insertError
-            }
-
-            const duration = Date.now() - startTime
-            return NextResponse.json({
-                success: true,
-                message: `Synced ${topPrices.length} top prices (no mappings)`,
-                duration: `${duration}ms`
-            })
-        }
-
-        // 4. Filter and format price records for mapped cards
-        const cardmarketIds = new Set(mappings.map(m => m.cardmarket_id))
+        // 4. Prepare batch of prices to insert
         const priceRecords: any[] = []
+        const cardPriceUpdates: any[] = []
 
-        for (const [idProduct, guide] of priceGuide) {
-            if (cardmarketIds.has(idProduct)) {
-                priceRecords.push(formatPriceRecord(guide, today))
+        for (const mapping of mappings || []) {
+            const price = priceGuide.get(mapping.cardmarket_id)
+            if (price) {
+                // For price_history table (historical tracking)
+                priceRecords.push({
+                    cardmarket_id: mapping.cardmarket_id,
+                    date: today,
+                    avg: price.avg,
+                    low: price.low,
+                    trend: price.trend,
+                    avg1: price.avg1,
+                    avg7: price.avg7,
+                    avg30: price.avg30,
+                    avg_holo: price['avg-holo'],
+                    low_holo: price['low-holo'],
+                    trend_holo: price['trend-holo'],
+                    avg7_holo: price['avg7-holo'],
+                    avg30_holo: price['avg30-holo']
+                })
+
+                // For card_prices table (current prices for quick lookup)
+                cardPriceUpdates.push({
+                    id: mapping.tcgdex_id,
+                    name: mapping.card_name,
+                    trend_price: price.trend,
+                    avg_sell_price: price.avg,
+                    low_price: price.low,
+                    updated_at: new Date().toISOString()
+                })
             }
         }
 
-        console.log(`📊 Syncing ${priceRecords.length} prices for mapped cards`)
+        console.log(`📊 Prepared ${priceRecords.length} price records`)
 
-        // 5. Upsert price records in batches
+        // 5. Batch insert price history
         const BATCH_SIZE = 500
-        let inserted = 0
+        let historyInserted = 0
 
         for (let i = 0; i < priceRecords.length; i += BATCH_SIZE) {
             const batch = priceRecords.slice(i, i + BATCH_SIZE)
-
-            const { error: upsertError } = await supabase
+            const { error } = await supabase
                 .from('price_history')
                 .upsert(batch, { onConflict: 'cardmarket_id,date' })
 
-            if (upsertError) {
-                console.error(`❌ Batch ${i / BATCH_SIZE + 1} failed:`, upsertError)
+            if (error) {
+                console.error(`❌ Batch ${Math.floor(i / BATCH_SIZE) + 1} failed:`, error)
             } else {
-                inserted += batch.length
+                historyInserted += batch.length
+            }
+        }
+
+        // 6. Update card_prices for quick lookup
+        let pricesUpdated = 0
+        for (let i = 0; i < cardPriceUpdates.length; i += BATCH_SIZE) {
+            const batch = cardPriceUpdates.slice(i, i + BATCH_SIZE)
+            const { error } = await supabase
+                .from('card_prices')
+                .upsert(batch, { onConflict: 'id' })
+
+            if (!error) {
+                pricesUpdated += batch.length
             }
         }
 
         const duration = Date.now() - startTime
-        console.log(`✅ Cardmarket sync complete: ${inserted} prices in ${duration}ms`)
+        console.log(`✅ Cardmarket sync complete in ${duration}ms`)
+        console.log(`   📈 History: ${historyInserted} records`)
+        console.log(`   💵 Prices: ${pricesUpdated} cards updated`)
 
         return NextResponse.json({
             success: true,
-            synced: inserted,
-            total: priceGuide.size,
             date: today,
+            totalPricesAvailable: priceGuide.size,
+            mappedCards: mappings?.length || 0,
+            historyInserted,
+            pricesUpdated,
             duration: `${duration}ms`
         })
+
     } catch (error: any) {
         console.error('❌ Cardmarket sync failed:', error)
         return NextResponse.json(
             { error: error.message || 'Sync failed' },
             { status: 500 }
         )
-    }
-}
-
-/**
- * Format a Cardmarket price guide entry for database insertion
- */
-function formatPriceRecord(guide: CardmarketPriceGuide, date: string): any {
-    return {
-        cardmarket_id: guide.idProduct,
-        date,
-        avg: guide.avg,
-        low: guide.low,
-        trend: guide.trend,
-        avg1: guide.avg1,
-        avg7: guide.avg7,
-        avg30: guide.avg30,
-        avg_holo: guide['avg-holo'],
-        low_holo: guide['low-holo'],
-        trend_holo: guide['trend-holo'],
-        avg7_holo: guide['avg7-holo'],
-        avg30_holo: guide['avg30-holo']
     }
 }
