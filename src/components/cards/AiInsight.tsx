@@ -4,6 +4,7 @@ import { Sparkles, Bot, AlertTriangle } from 'lucide-react'
 
 interface AiInsightProps {
     cardName: string
+    setName: string
     price: number
     trend: number
     scores: any
@@ -25,7 +26,7 @@ interface AiResponse {
     }
 }
 
-export function AiInsight({ cardName, price, trend, scores }: AiInsightProps) {
+export function AiInsight({ cardName, setName, price, trend, scores }: AiInsightProps) {
     const [data, setData] = useState<AiResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
@@ -37,7 +38,7 @@ export function AiInsight({ cardName, price, trend, scores }: AiInsightProps) {
                 const res = await fetch('/api/ai/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cardName, price, trend, scores })
+                    body: JSON.stringify({ cardName, setName, price, trend, scores })
                 })
                 const json = await res.json()
 

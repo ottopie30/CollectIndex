@@ -12,7 +12,7 @@ const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null
 // Use the latest flash model available
 const MODEL_NAME = 'gemini-3-flash-preview' // or 'gemini-2.0-flash-exp' if available to user
 
-export async function generateCardAnalysis(cardName: string, price: number, trend: number, scores: any) {
+export async function generateCardAnalysis(cardName: string, setName: string, price: number, trend: number, scores: any) {
     if (!genAI) return null
 
     try {
@@ -29,8 +29,9 @@ export async function generateCardAnalysis(cardName: string, price: number, tren
         Analyze the investment potential of this card based on the provided technical data.
 
         Card: ${cardName}
-        Current Price: ${price}€
-        30-Day Trend: ${trend > 0 ? '+' : ''}${trend}%
+        Set: ${setName}
+        Current Price: ${price.toFixed(2)}€
+        30-Day Trend: ${trend > 0 ? '+' : ''}${trend.toFixed(1)}%
         
         Technical Scores (0-100):
         - Overall Speculation Score: ${scores.total}
@@ -39,9 +40,9 @@ export async function generateCardAnalysis(cardName: string, price: number, tren
         
         Task:
         Provide a JSON response with:
-        1. "summary": A concise 2-3 sentence analysis explaining why this card is or isn't a good investment right now. Be specific and mention key factors.
+        1. "summary": A concise 2-3 sentence analysis explaining why this card is or isn't a good investment right now. Be specific and mention the set (${setName}) and key factors.
         2. "analysis": A nested object with:
-            - "context": brief context (vintage/modern/etc)
+            - "context": brief context about the set and card era
             - "diagnosis": what the scores indicate
             - "verdict": Buy, Hold, or Sell verdict
         3. "scores": Evaluate and generate 5 dimension scores (0-100) based on your expert knowledge and the data:

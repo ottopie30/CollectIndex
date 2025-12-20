@@ -398,7 +398,7 @@ export default function CardDetailPage() {
                                 <div className={`flex items-center gap-1 ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {priceChange >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                                     <span className="text-lg font-semibold">
-                                        {priceChange >= 0 ? '+' : ''}<CountUp to={Math.abs(priceChange)} duration={1.5} className="inline" />%
+                                        {priceChange >= 0 ? '+' : '-'}{Math.abs(priceChange).toFixed(1)}%
                                     </span>
                                     <span className="text-white/40 text-sm">90j</span>
                                 </div>
@@ -591,8 +591,9 @@ export default function CardDetailPage() {
                     <div className="space-y-4">
                         <AiInsight
                             cardName={card.name}
+                            setName={card.set?.name || 'Unknown Set'}
                             price={priceHistory[priceHistory.length - 1]?.price || 0}
-                            trend={3.2} // Calculated trend
+                            trend={priceChange}
                             scores={score}
                         />
 

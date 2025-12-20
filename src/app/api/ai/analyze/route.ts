@@ -5,13 +5,13 @@ import { generateCardAnalysis } from '@/lib/gemini'
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { cardName, price, trend, scores } = body
+        const { cardName, setName, price, trend, scores } = body
 
         if (!cardName || !scores) {
             return NextResponse.json({ error: 'Missing data' }, { status: 400 })
         }
 
-        const result = await generateCardAnalysis(cardName, price, trend, scores)
+        const result = await generateCardAnalysis(cardName, setName || 'Unknown Set', price, trend, scores)
 
         if (!result) {
             return NextResponse.json({
