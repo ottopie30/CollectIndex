@@ -107,7 +107,7 @@ export default function MappingAdminPage() {
             setLogs(prev => [{ set: set.name, status: 'pending', message: 'Starting...' }, ...prev])
 
             let attempt = 0
-            let result
+            let result: { success: boolean, data?: any, error?: string } | undefined
 
             // Try up to 3 times
             while (attempt < 3) {
@@ -132,8 +132,8 @@ export default function MappingAdminPage() {
                     next[0] = {
                         set: set.name,
                         status: 'success',
-                        message: `Mapped ${result.data.mapped} cards`,
-                        details: result.data
+                        message: `Mapped ${result?.data.mapped} cards`,
+                        details: result?.data
                     }
                     return next
                 })
