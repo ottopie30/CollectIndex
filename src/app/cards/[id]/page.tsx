@@ -32,6 +32,7 @@ import {
 import SpotlightCard from '@/components/ui/SpotlightCard'
 import FadeContent from '@/components/ui/FadeContent'
 import CountUp from '@/components/ui/CountUp'
+import { SynthesisCard } from '@/components/cards/SynthesisCard'
 
 // Generate mock price history (will be replaced by real data later)
 function generateMockPriceHistory(cardName: string) {
@@ -361,6 +362,23 @@ export default function CardDetailPage() {
 
                 {/* Right column - Details */}
                 <div className="lg:col-span-2 space-y-6">
+                    {/* Global Synthesis - NEW */}
+                    <SynthesisCard
+                        cardName={card.name}
+                        setName={card.set?.name || 'Unknown Set'}
+                        price={currentPrice}
+                        priceChange={priceChange}
+                        speculationScore={score.total}
+                        rebondScore={50}
+                        dimensions={{
+                            d1: score.d1?.score ?? 50,
+                            d2: score.d2?.score ?? 50,
+                            d3: score.d3?.score ?? 50,
+                            d4: score.d4?.score ?? 50,
+                            d5: score.d5?.score ?? 50
+                        }}
+                    />
+
                     {/* Header */}
                     <div className="glass rounded-2xl p-6">
                         <div className="flex items-start justify-between mb-4">
