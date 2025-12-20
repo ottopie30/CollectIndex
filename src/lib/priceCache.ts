@@ -61,8 +61,11 @@ export async function getCachedPriceBySetAndNumber(
     number: string,
     maxAgeHours = 24
 ): Promise<CachedPrice | null> {
+    console.log(`🔍 Cache lookup: set="${setName}" number="${number}"`)
+
     try {
-        const { data, error } = await supabase
+        // Try exact set match first
+        let { data, error } = await supabase
             .from('card_prices')
             .select('*')
             .ilike('set_name', `%${setName}%`)
@@ -71,13 +74,35 @@ export async function getCachedPriceBySetAndNumber(
             .limit(1)
             .single()
 
-        if (error || !data) return null
+        // If no match, try by number only (less precise but better than nothing)
+        if (error || !data) {
+            console.log(`🔍 No set match, trying number only: ${number}`)
+            const result = await supabase
+                .from('card_prices')
+                .select('*')
+                .eq('number', number)
+                .order('trend_price', { ascending: false })
+                .limit(1)
+                .single()
+
+            data = result.data
+            error = result.error
+        }
+
+        if (error || !data) {
+            console.log('🔍 No cache match found')
+            return null
+        }
 
         const updatedAt = new Date(data.updated_at)
         const ageHours = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60)
 
-        if (ageHours > maxAgeHours) return null
+        if (ageHours > maxAgeHours) {
+            console.log(`🔍 Cache stale (${ageHours.toFixed(1)}h old)`)
+            return null
+        }
 
+        console.log(`✅ Cache HIT: ${data.name} = ${data.trend_price}€`)
         return data as CachedPrice
     } catch (e) {
         console.error('Error reading price cache by set:', e)
