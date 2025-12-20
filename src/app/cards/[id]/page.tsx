@@ -2,15 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import { getCard, getCardImageUrl, TCGdexCard, getCardInEnglish } from '@/lib/tcgdex'
-import { getCardWithPrices, getBestMarketPrice, searchCardsWithPrices } from '@/lib/pokemontcg'
-import { getCachedPrice, getCachedPriceBySetAndNumber, setCachedPrice } from '@/lib/priceCache'
+import { getCard, getCardImageUrl, TCGdexCard } from '@/lib/tcgdex'
 import { estimateSetYear } from '@/lib/scoring/scarcity'
 import { AiInsight } from '@/components/cards/AiInsight'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
 import { PriceChart } from '@/components/charts/PriceChart'
 import { getScoreColor, formatPrice } from '@/lib/utils'
-import { calculateSimplifiedScore, calculateFullScore, FullSpeculationScore } from '@/lib/scoring'
+import { calculateFullScore, FullSpeculationScore } from '@/lib/scoring'
 import { calculateTechnicalIndicators, calculateRebondScore, TechnicalIndicators, RebondScore } from '@/lib/scoring/technicals'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -25,7 +23,6 @@ import {
     Share2,
     BarChart3,
     Wallet,
-    Info,
     Activity,
     Zap
 } from 'lucide-react'
@@ -33,25 +30,6 @@ import SpotlightCard from '@/components/ui/SpotlightCard'
 import FadeContent from '@/components/ui/FadeContent'
 import CountUp from '@/components/ui/CountUp'
 import { SynthesisCard } from '@/components/cards/SynthesisCard'
-
-// Generate mock price history (will be replaced by real data later)
-function generateMockPriceHistory(cardName: string) {
-    const now = Date.now()
-    const data = []
-    // Use card name to seed the random for consistency
-    const seed = cardName.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
-    let basePrice = 20 + (seed % 200)
-
-    for (let i = 90; i >= 0; i--) {
-        const volatility = 0.02 + ((seed % 10) / 100)
-        basePrice *= (1 - volatility) + (Math.random() * 2 * volatility)
-        data.push({
-            date: new Date(now - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            price: Math.round(basePrice * 100) / 100
-        })
-    }
-    return data
-}
 
 export default function CardDetailPage() {
     const params = useParams()
@@ -70,7 +48,7 @@ export default function CardDetailPage() {
         return (year || 2020) < 2011
     }, [card])
 
-    // Fetch Card + Price
+    // Fetch Card + Live Price
     useEffect(() => {
         async function loadData() {
             setIsLoading(true)
@@ -81,108 +59,22 @@ export default function CardDetailPage() {
 
                 setCard(cardData)
 
-                // 2. Get Real Price - CHECK CACHE FIRST (instant!) then fallback to API
+                // 2. Get Live Price from our new On-Demand API
+                // Simple & Fast: One request, no complex local mapping needed anymore.
                 let realPrice = 0
-                let priceSource = ''
-
                 try {
-                    // ⚡ STEP 1: Check Supabase cache (< 24h old = instant!)
-                    const number = cardData.localId || cardData.id.split('-').pop() || ''
-                    const cached = await getCachedPriceBySetAndNumber(
-                        cardData.set?.name || '',
-                        number
-                    )
+                    console.log('⚡ Fetching Live Price...')
+                    const res = await fetch(`/api/cardmarket/single?id=${cardId}`)
+                    const liveData = await res.json()
 
-                    if (cached && cached.trend_price) {
-                        realPrice = cached.trend_price
-                        priceSource = 'cache'
-                        console.log(`⚡ Cache HIT: ${cached.name} = ${realPrice}€`)
+                    if (liveData.found && liveData.price) {
+                        realPrice = liveData.price
+                        console.log(`✅ Live Price: ${realPrice}€`)
                     } else {
-                        console.log('💾 Cache MISS, fetching from API...')
-
-                        // Start fetching English data in PARALLEL to speed up fallback
-                        const enCardPromise = getCardInEnglish(cardData.id)
-
-                        // Timeout helper
-                        const fetchWithTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
-                            const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-                            return Promise.race([promise, timeout])
-                        }
-
-                        // Try direct ID match
-                        let tcgCard = await fetchWithTimeout(
-                            getCardWithPrices(cardData.id),
-                            2000,
-                            null
-                        )
-
-                        if (!tcgCard) {
-                            try {
-                                let searchName = cardData.name
-                                let searchSet = cardData.set?.name
-
-                                try {
-                                    const enCard = await fetchWithTimeout(enCardPromise, 1500, null)
-                                    if (enCard) {
-                                        if (enCard.name) searchName = enCard.name
-                                        if (enCard.set?.name) searchSet = enCard.set.name
-                                    }
-                                } catch (e) {
-                                    console.warn('Failed to fetch EN name')
-                                }
-
-                                const cleanName = searchName.split('(')[0].trim()
-                                let searchQuery = ''
-
-                                if (searchSet && number) {
-                                    const cleanSet = searchSet.replace(/[^\w\s]/g, '')
-                                    searchQuery = `number:${number} set.name:"${cleanSet}"`
-                                } else {
-                                    searchQuery = `name:"${cleanName}" number:${number}`
-                                }
-
-                                console.log(`⚠️ Fallback: ${searchQuery}`)
-
-                                const searchResults = await fetchWithTimeout(
-                                    searchCardsWithPrices(searchQuery, 1),
-                                    5000,
-                                    []
-                                )
-                                if (searchResults?.length > 0) {
-                                    tcgCard = searchResults[0]
-                                }
-                            } catch (e) {
-                                console.error('Fallback search failed:', e)
-                            }
-                        }
-
-                        if (tcgCard) {
-                            const best = getBestMarketPrice(tcgCard)
-                            if (best) {
-                                realPrice = best.price
-                                priceSource = 'api'
-
-                                // 💾 Save to cache for next time
-                                setCachedPrice({
-                                    id: tcgCard.id,
-                                    name: tcgCard.name,
-                                    set_id: tcgCard.set?.id || null,
-                                    set_name: tcgCard.set?.name || null,
-                                    number: tcgCard.number || null,
-                                    rarity: tcgCard.rarity || null,
-                                    trend_price: tcgCard.cardmarket?.prices?.trendPrice || null,
-                                    avg_sell_price: tcgCard.cardmarket?.prices?.averageSellPrice || null,
-                                    low_price: tcgCard.cardmarket?.prices?.lowPrice || null,
-                                    tcgplayer_price: tcgCard.tcgplayer?.prices?.holofoil?.market || null,
-                                    image_small: tcgCard.images?.small || null,
-                                    image_large: tcgCard.images?.large || null
-                                })
-                                console.log(`💾 Cached price for ${tcgCard.name}`)
-                            }
-                        }
+                        console.log('⚠️ No price found via API')
                     }
                 } catch (e) {
-                    console.warn('Price fetch failed:', e)
+                    console.warn('API Fetch failed', e)
                 }
 
                 // 3. Current Price Strategy
@@ -235,9 +127,6 @@ export default function CardDetailPage() {
             const currentPrice = priceHistory[priceHistory.length - 1]?.price || 0
             const priceOneYearAgo = priceHistory[0]?.price || currentPrice
 
-            const setYear = estimateSetYear(card.set?.id || '')
-            const isVintage = (setYear || 2020) < 2011
-
             const score = calculateFullScore({
                 priceHistory: priceHistory.map(p => ({ price: p.price, date: new Date(p.date) })),
                 currentPrice,
@@ -274,7 +163,7 @@ export default function CardDetailPage() {
                 }
             })
         }
-    }, [card, priceHistory])
+    }, [card, priceHistory, isVintage])
 
     const score = fullScore || {
         total: 50,
@@ -458,31 +347,6 @@ export default function CardDetailPage() {
                                     </div>
                                 )
                             })}
-                        </div>
-
-                        {/* Interpretation */}
-                        <div className={`mt-6 p-4 rounded-xl ${scoreColors.bg} border border-white/10`}>
-                            <div className="flex items-start gap-3">
-                                {score.total >= 60 ? (
-                                    <AlertTriangle className={`w-5 h-5 ${scoreColors.text} shrink-0 mt-0.5`} />
-                                ) : (
-                                    <Star className={`w-5 h-5 ${scoreColors.text} shrink-0 mt-0.5`} />
-                                )}
-                                <div>
-                                    <p className={`font-semibold ${scoreColors.text}`}>
-                                        {score.total < 30 ? 'Investissement Solide' :
-                                            score.total < 60 ? 'Zone de Transition' :
-                                                'Spéculation Élevée'}
-                                    </p>
-                                    <p className="text-sm text-white/60 mt-1">
-                                        {score.total < 30
-                                            ? 'Cette carte présente des caractéristiques d\'investissement stable avec une volatilité faible.'
-                                            : score.total < 60
-                                                ? 'Cette carte montre des signes mixtes. Surveillez les mouvements de prix.'
-                                                : 'Attention : Cette carte montre des signes de spéculation élevée. Risque de correction important.'}
-                                    </p>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
