@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { getCard, getCardImageUrl, TCGdexCard, getCardInEnglish } from '@/lib/tcgdex'
 import { getCardWithPrices, getBestMarketPrice, searchCardsWithPrices } from '@/lib/pokemontcg'
+import { getCachedPrice, getCachedPriceBySetAndNumber, setCachedPrice } from '@/lib/priceCache'
 import { estimateSetYear } from '@/lib/scoring/scarcity'
 import { AiInsight } from '@/components/cards/AiInsight'
 import { ScoreGauge } from '@/components/cards/ScoreGauge'
@@ -76,86 +77,108 @@ export default function CardDetailPage() {
 
                 setCard(cardData)
 
-                // 2. Get Real Price (Pokemon TCG API) with timeout
+                // 2. Get Real Price - CHECK CACHE FIRST (instant!) then fallback to API
                 let realPrice = 0
+                let priceSource = ''
+
                 try {
-                    // Start fetching English data in PARALLEL to speed up fallback if needed
-                    const enCardPromise = getCardInEnglish(cardData.id)
-
-                    // Timeout helper
-                    const fetchWithTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
-                        const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-                        return Promise.race([promise, timeout])
-                    }
-
-                    // Try direct ID match concurrently
-                    let tcgCard = await fetchWithTimeout(
-                        getCardWithPrices(cardData.id), // Try exact ID match
-                        2000,
-                        null
+                    // ⚡ STEP 1: Check Supabase cache (< 24h old = instant!)
+                    const number = cardData.localId || cardData.id.split('-').pop() || ''
+                    const cached = await getCachedPriceBySetAndNumber(
+                        cardData.set?.name || '',
+                        number
                     )
 
-                    console.log('TCG Card ID Direct Hit:', tcgCard ? 'YES' : 'NO')
+                    if (cached && cached.trend_price) {
+                        realPrice = cached.trend_price
+                        priceSource = 'cache'
+                        console.log(`⚡ Cache HIT: ${cached.name} = ${realPrice}€`)
+                    } else {
+                        console.log('💾 Cache MISS, fetching from API...')
 
-                    if (!tcgCard) {
-                        try {
-                            const number = cardData.localId || cardData.id.split('-').pop()
-                            console.log('Starting Fallback Search logic...')
+                        // Start fetching English data in PARALLEL to speed up fallback
+                        const enCardPromise = getCardInEnglish(cardData.id)
 
-                            // NEW: Try to get English name for better pricing matches
-                            let searchName = cardData.name
-                            let searchSet = cardData.set?.name
+                        // Timeout helper
+                        const fetchWithTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+                            const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+                            return Promise.race([promise, timeout])
+                        }
 
+                        // Try direct ID match
+                        let tcgCard = await fetchWithTimeout(
+                            getCardWithPrices(cardData.id),
+                            2000,
+                            null
+                        )
+
+                        if (!tcgCard) {
                             try {
-                                // Await the promise we started earlier
-                                const enCard = await enCardPromise
-                                if (enCard) {
-                                    if (enCard.name) {
-                                        searchName = enCard.name
-                                        console.log('🌍 Found English name:', searchName)
+                                let searchName = cardData.name
+                                let searchSet = cardData.set?.name
+
+                                try {
+                                    const enCard = await fetchWithTimeout(enCardPromise, 1500, null)
+                                    if (enCard) {
+                                        if (enCard.name) searchName = enCard.name
+                                        if (enCard.set?.name) searchSet = enCard.set.name
                                     }
-                                    if (enCard.set?.name) {
-                                        searchSet = enCard.set.name
-                                        console.log('🌍 Found English set:', searchSet)
-                                    }
+                                } catch (e) {
+                                    console.warn('Failed to fetch EN name')
+                                }
+
+                                const cleanName = searchName.split('(')[0].trim()
+                                let searchQuery = ''
+
+                                if (searchSet && number) {
+                                    const cleanSet = searchSet.replace(/[^\w\s]/g, '')
+                                    searchQuery = `number:${number} set.name:"${cleanSet}"`
+                                } else {
+                                    searchQuery = `name:"${cleanName}" number:${number}`
+                                }
+
+                                console.log(`⚠️ Fallback: ${searchQuery}`)
+
+                                const searchResults = await fetchWithTimeout(
+                                    searchCardsWithPrices(searchQuery, 1),
+                                    5000,
+                                    []
+                                )
+                                if (searchResults?.length > 0) {
+                                    tcgCard = searchResults[0]
                                 }
                             } catch (e) {
-                                console.warn('Failed to fetch EN name, using local name.')
+                                console.error('Fallback search failed:', e)
                             }
+                        }
 
-                            // Clean name (remove (JTG 161) suffix if present)
-                            const cleanName = searchName.split('(')[0].trim()
+                        if (tcgCard) {
+                            const best = getBestMarketPrice(tcgCard)
+                            if (best) {
+                                realPrice = best.price
+                                priceSource = 'api'
 
-                            // Optimize query: If we have Set Name + Number, simpler is faster (avoids text search)
-                            let searchQuery = ''
-
-                            if (searchSet && number) {
-                                // Remove special chars from set name
-                                const cleanSet = searchSet.replace(/[^\w\s]/g, '')
-                                // Fast Query: Number + Set (Precision match, no text search)
-                                searchQuery = `number:${number} set.name:"${cleanSet}"`
-                            } else {
-                                // Fallback: Name + Number
-                                searchQuery = `name:"${cleanName}" number:${number}`
+                                // 💾 Save to cache for next time
+                                setCachedPrice({
+                                    id: tcgCard.id,
+                                    name: tcgCard.name,
+                                    set_id: tcgCard.set?.id || null,
+                                    set_name: tcgCard.set?.name || null,
+                                    number: tcgCard.number || null,
+                                    rarity: tcgCard.rarity || null,
+                                    trend_price: tcgCard.cardmarket?.prices?.trendPrice || null,
+                                    avg_sell_price: tcgCard.cardmarket?.prices?.averageSellPrice || null,
+                                    low_price: tcgCard.cardmarket?.prices?.lowPrice || null,
+                                    tcgplayer_price: tcgCard.tcgplayer?.prices?.holofoil?.market || null,
+                                    image_small: tcgCard.images?.small || null,
+                                    image_large: tcgCard.images?.large || null
+                                })
+                                console.log(`💾 Cached price for ${tcgCard.name}`)
                             }
-
-                            console.log(`⚠️ Pricing Fallback: Searching for ${searchQuery}`)
-
-                            const searchResults = await searchCardsWithPrices(searchQuery, 1)
-                            if (searchResults.length > 0) {
-                                tcgCard = searchResults[0]
-                            }
-                        } catch (e) {
-                            console.error('Fallback search failed:', e)
                         }
                     }
-
-                    if (tcgCard) {
-                        const best = getBestMarketPrice(tcgCard)
-                        if (best) realPrice = best.price
-                    }
                 } catch (e) {
-                    console.warn('Price fetch failed, using fallback', e)
+                    console.warn('Price fetch failed:', e)
                 }
 
                 // 3. Current Price Strategy

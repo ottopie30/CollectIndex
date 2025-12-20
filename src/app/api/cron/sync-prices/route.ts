@@ -1,88 +1,137 @@
-// Cron job API route for syncing prices to database
-// This endpoint is called daily by Vercel Cron
+// Cron Job: Sync top 20,000 most expensive cards' prices daily
+// Protected by CRON_SECRET header
+// Run at midnight UTC via Vercel Cron
 
-import { NextResponse } from 'next/server'
-import { searchCardsWithPrices } from '@/lib/pokemontcg'
-import { savePricesBatch } from '@/lib/priceDb'
+import { NextRequest, NextResponse } from 'next/server'
+import { bulkUpsertPrices, CachedPrice } from '@/lib/priceCache'
 
-// Popular Pokemon cards to sync daily
-const POPULAR_POKEMON = [
-    'charizard',
-    'pikachu',
-    'mewtwo',
-    'mew',
-    'blastoise',
-    'gyarados',
-    'gengar',
-    'alakazam',
-    'dragonite',
-    'snorlax',
-    'eevee',
-    'lugia',
-    'ho-oh',
-    'rayquaza',
-    'umbreon'
-]
+const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2/cards'
+const PAGE_SIZE = 250  // Max allowed by API
+const MAX_CARDS = 20000
+const MAX_PAGES = Math.ceil(MAX_CARDS / PAGE_SIZE)  // 80 pages
+
+// Rate limiting: wait between requests to avoid 429s
+const DELAY_MS = 500
+
+function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // 60 seconds timeout
+export const runtime = 'nodejs'
+export const maxDuration = 300  // 5 minute max (enough for 80 pages with delays)
 
-export async function GET(request: Request) {
-    // Verify cron secret for security
+export async function GET(request: NextRequest) {
+    // Verify cron secret (Vercel sends this automatically)
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Allow local dev without secret
+    if (process.env.NODE_ENV === 'production' && cronSecret) {
+        if (authHeader !== `Bearer ${cronSecret}`) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
     }
 
+    console.log('🚀 Starting price sync job...')
+    const startTime = Date.now()
+
+    const apiKey = process.env.POKEMON_TCG_API_KEY
+    if (!apiKey) {
+        return NextResponse.json({ error: 'POKEMON_TCG_API_KEY not set' }, { status: 500 })
+    }
+
+    let totalSynced = 0
+    let page = 1
+    let hasMore = true
+
     try {
-        const startTime = Date.now()
-        let totalSaved = 0
-        let totalFailed = 0
+        while (hasMore && page <= MAX_PAGES) {
+            console.log(`📄 Fetching page ${page}/${MAX_PAGES}...`)
 
-        console.log(`[CRON] Starting price sync at ${new Date().toISOString()}`)
+            const response = await fetch(
+                `${POKEMON_TCG_API}?orderBy=-cardmarket.prices.trendPrice&page=${page}&pageSize=${PAGE_SIZE}`,
+                {
+                    headers: {
+                        'X-Api-Key': apiKey
+                    }
+                }
+            )
 
-        // Sync prices for popular Pokemon
-        for (const pokemon of POPULAR_POKEMON) {
-            try {
-                const cards = await searchCardsWithPrices(pokemon, 10)
-                const { saved, failed } = await savePricesBatch(cards)
-                totalSaved += saved
-                totalFailed += failed
-                console.log(`[CRON] ${pokemon}: ${saved} saved, ${failed} failed`)
-            } catch (error) {
-                console.error(`[CRON] Error syncing ${pokemon}:`, error)
-                totalFailed += 1
+            if (!response.ok) {
+                console.error(`API error on page ${page}: ${response.status}`)
+                // If rate limited, wait and retry
+                if (response.status === 429) {
+                    console.log('Rate limited, waiting 5s...')
+                    await delay(5000)
+                    continue
+                }
+                break
             }
 
-            // Rate limiting - wait 500ms between calls
-            await new Promise(resolve => setTimeout(resolve, 500))
+            const data = await response.json()
+            const cards = data.data || []
+
+            if (cards.length === 0) {
+                hasMore = false
+                break
+            }
+
+            // Transform to cache format
+            const cacheable: Partial<CachedPrice>[] = cards.map((card: any) => ({
+                id: card.id,
+                name: card.name,
+                set_id: card.set?.id || null,
+                set_name: card.set?.name || null,
+                number: card.number || null,
+                rarity: card.rarity || null,
+                trend_price: card.cardmarket?.prices?.trendPrice || null,
+                avg_sell_price: card.cardmarket?.prices?.averageSellPrice || null,
+                low_price: card.cardmarket?.prices?.lowPrice || null,
+                tcgplayer_price: card.tcgplayer?.prices?.holofoil?.market ||
+                    card.tcgplayer?.prices?.normal?.market || null,
+                image_small: card.images?.small || null,
+                image_large: card.images?.large || null
+            }))
+
+            // Bulk upsert to Supabase
+            const synced = await bulkUpsertPrices(cacheable)
+            totalSynced += synced
+
+            console.log(`✅ Page ${page}: synced ${synced} cards (total: ${totalSynced})`)
+
+            // Check if we've reached the end
+            if (cards.length < PAGE_SIZE) {
+                hasMore = false
+            }
+
+            page++
+
+            // Rate limit ourselves
+            await delay(DELAY_MS)
         }
 
-        const duration = Date.now() - startTime
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1)
+        console.log(`🎉 Sync complete! ${totalSynced} cards in ${duration}s`)
 
         return NextResponse.json({
             success: true,
-            message: 'Price sync completed',
-            stats: {
-                saved: totalSaved,
-                failed: totalFailed,
-                duration: `${duration}ms`,
-                timestamp: new Date().toISOString()
-            }
+            synced: totalSynced,
+            pages: page - 1,
+            duration: `${duration}s`
         })
 
     } catch (error) {
-        console.error('[CRON] Price sync failed:', error)
-        return NextResponse.json(
-            { error: 'Price sync failed', details: String(error) },
-            { status: 500 }
-        )
+        console.error('Sync job failed:', error)
+        return NextResponse.json({
+            error: 'Sync failed',
+            synced: totalSynced,
+            details: String(error)
+        }, { status: 500 })
     }
 }
 
 // Also allow POST for manual triggers
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     return GET(request)
 }
