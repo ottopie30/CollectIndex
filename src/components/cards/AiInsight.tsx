@@ -91,7 +91,7 @@ export function AiInsight({ cardName, setName, price, trend, scores }: AiInsight
                     </div>
                     <div>
                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                            Gemini 3.0 Flash
+                            PokéIA Analyst
                             <span className="px-2 py-0.5 text-[10px] bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30">
                                 HYBRID ENGINE
                             </span>
