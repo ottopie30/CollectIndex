@@ -81,6 +81,10 @@ export async function GET(request: NextRequest) {
         let page = 1
         let hasMore = true
 
+        // Debug stats
+        let totalFetched = 0
+        let cardsWithCm = 0
+
         while (hasMore) {
             // Fetch from Pokemon TCG API with optimized payload (select only needed fields)
             // This prevents 504 Gateway Timeouts by reducing response size by ~90%
@@ -101,12 +105,15 @@ export async function GET(request: NextRequest) {
                 break
             }
 
+            totalFetched += cards.length
+
             for (const card of cards) {
                 // Extract Cardmarket ID from URL
                 // URL format: https://www.cardmarket.com/en/Pokemon/Products/Singles/Set-Name/Card-Name?idProduct=12345
                 const cmUrl = card.cardmarket?.url
 
                 if (cmUrl) {
+                    cardsWithCm++
                     const match = cmUrl.match(/idProduct=(\d+)/)
                     if (match && match[1]) {
                         const cmId = parseInt(match[1])
@@ -152,6 +159,11 @@ export async function GET(request: NextRequest) {
             success: true,
             set: setId,
             mapped: mappings.length,
+            debug: {
+                totalFetched,
+                cardsWithCm,
+                apiSetId
+            },
             sample: mappings.slice(0, 5)
         })
 
