@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 /**
- * Sync Mappings via Pokemon TCG API
+ * Sync Mappings via Pokemon TCG API - Frontend Driven
  * 
- * Instead of guessing names, we use the official Pokemon TCG API
- * which links TCGdex/Set IDs to Cardmarket URLs directly.
+ * Strategy:
+ * - Frontend calls this API page by page (page=1, page=2...)
+ * - This API fetches ONLY that page from Pokemon TCG API
+ * - Returns `hasMore: true` if there are more pages
+ * - Returns `mapped: N` count
  * 
- * We iterate set by set to build the mapping database reliably.
+ * This strategy guarantees NO TIMEOUTS on Vercel as each request is <1s.
  */
 
 const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2/cards'
@@ -16,7 +19,6 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // Map TCGdex Set IDs to Pokemon TCG API Set IDs
-// TODO: Expand this list or fetch dynamically
 const SET_MAPPING: Record<string, string> = {
     'sv8pt5': 'sv8pt5', // Prismatic Evolutions
     'sv8': 'sv8',       // Surging Sparks
@@ -32,45 +34,33 @@ const SET_MAPPING: Record<string, string> = {
     'sv1': 'sv1',       // Scarlet & Violet
     'swsh12pt5': 'swsh12pt5', // Crown Zenith
     'swsh12': 'swsh12', // Silver Tempest
-    'learning': 'cel25', // Celebrations (example of mapping diff)
-    // Add more as needed...
 }
 
 export async function GET(request: NextRequest) {
     try {
-        // Create client inside request to handle env var changes/errors gracefully
         if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
             throw new Error('Missing Supabase environment variables')
         }
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
-
         const setId = request.nextUrl.searchParams.get('set')
         const mode = request.nextUrl.searchParams.get('mode')
+        const page = parseInt(request.nextUrl.searchParams.get('page') || '1')
 
         // Mode: List All Sets
         if (mode === 'list') {
             console.log('🔄 Fetching list of all sets...')
             try {
-                // Try API first with short timeout
                 const response = await fetch(`${POKEMON_TCG_API.replace('/cards', '/sets')}`, {
                     headers: { 'X-Api-Key': API_KEY },
                     signal: AbortSignal.timeout(5000)
                 })
 
-                if (!response.ok) {
-                    throw new Error(`API ${response.status} ${response.statusText}`)
-                }
-
+                if (!response.ok) throw new Error(`API ${response.status}`)
                 const data = await response.json()
-                return NextResponse.json({
-                    success: true,
-                    sets: data.data || []
-                })
+                return NextResponse.json({ success: true, sets: data.data || [] })
             } catch (e: any) {
                 console.warn('⚠️ API Unreachable/Timeout, using local set list fallback', e.message)
-
-                // Fallback to local list from SET_MAPPING to allow Fast Mode to work
                 const localSets = Object.keys(SET_MAPPING).map(id => ({
                     id,
                     name: `Set ${id.toUpperCase()} (API Offline)`,
@@ -78,12 +68,7 @@ export async function GET(request: NextRequest) {
                     printedTotal: '?',
                     images: { symbol: 'https://images.pokemontcg.io/sv3pt5/symbol.png', logo: '' }
                 }))
-
-                return NextResponse.json({
-                    success: true,
-                    sets: localSets,
-                    warning: `API Issue (${e.message}) - Showing local sets only. USE FAST MODE.`
-                })
+                return NextResponse.json({ success: true, sets: localSets, warning: 'API Unreachable' })
             }
         }
 
@@ -94,74 +79,47 @@ export async function GET(request: NextRequest) {
             })
         }
 
-        const apiSetId = SET_MAPPING[setId] || setId // Fallback to same ID
-        console.log(`🔄 Mapping set ${setId} (API: ${apiSetId})...`)
+        const apiSetId = SET_MAPPING[setId] || setId
+        const pageSize = 50 // Keep small for speed
 
-        const mappings = []
-        let page = 1
-        const pageSize = 50 // Reduced from 250 to prevent Vercel 504 Timeouts
-        let hasMore = true
+        // Fetch ONE page from Pokemon TCG API
+        console.log(`PAGE ${page}: Fetching ${apiSetId}...`)
+        const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}&pageSize=${pageSize}&select=id,name,number,set,cardmarket,images`, {
+            headers: { 'X-Api-Key': API_KEY }
+        })
 
-        // Debug stats
-        let totalFetched = 0
-        let cardsWithCm = 0
-
-        while (hasMore) {
-            // Fetch from Pokemon TCG API with optimized payload (select only needed fields)
-            // AND reduced page size (chunking)
-            const response = await fetch(`${POKEMON_TCG_API}?q=set.id:${apiSetId}&page=${page}&pageSize=${pageSize}&select=id,name,number,set,cardmarket,images`, {
-                headers: { 'X-Api-Key': API_KEY }
-            })
-
-            if (!response.ok) {
-                const text = await response.text()
-                throw new Error(`Pokemon API error (${response.status}) for set ${apiSetId}: ${text}`)
-            }
-
-            const data = await response.json()
-            const cards = data.data || []
-
-            if (cards.length === 0) {
-                hasMore = false
-                break
-            }
-
-            totalFetched += cards.length
-
-            for (const card of cards) {
-                // Extract Cardmarket ID from URL
-                const cmUrl = card.cardmarket?.url
-
-                if (cmUrl) {
-                    cardsWithCm++
-                    const match = cmUrl.match(/idProduct=(\d+)/)
-                    if (match && match[1]) {
-                        const cmId = parseInt(match[1])
-
-                        const localId = card.number
-                        const tcgdexId = `${setId}-${localId}`
-
-                        mappings.push({
-                            tcgdex_id: tcgdexId,
-                            cardmarket_id: cmId,
-                            card_name: card.name,
-                            set_code: setId,
-                            set_name: card.set.name,
-                            updated_at: new Date().toISOString()
-                        })
-                    }
-                }
-            }
-
-            // Check if we reached the end
-            if (cards.length < pageSize) {
-                hasMore = false
-            } else {
-                page++
-            }
+        if (!response.ok) {
+            const text = await response.text()
+            throw new Error(`Pokemon API error (${response.status}) for set ${apiSetId}: ${text}`)
         }
 
-        console.log(`📋 Found ${mappings.length} mappings for ${setId}`)
+        const data = await response.json()
+        const cards = data.data || []
+        const totalCount = data.totalCount || 0
+        const hasMore = (page * pageSize) < totalCount // Calculate if more pages exist
+
+        const mappings = []
+
+        for (const card of cards) {
+            const cmUrl = card.cardmarket?.url
+            if (cmUrl) {
+                const match = cmUrl.match(/idProduct=(\d+)/)
+                if (match && match[1]) {
+                    const cmId = parseInt(match[1])
+                    const localId = card.number
+                    const tcgdexId = `${setId}-${localId}`
+
+                    mappings.push({
+                        tcgdex_id: tcgdexId,
+                        cardmarket_id: cmId,
+                        card_name: card.name,
+                        set_code: setId,
+                        set_name: card.set.name,
+                        updated_at: new Date().toISOString()
+                    })
+                }
+            }
+        }
 
         // Batch upsert to Supabase
         if (mappings.length > 0) {
@@ -175,14 +133,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             success: true,
             set: setId,
+            page: page,
             mapped: mappings.length,
-            debug: {
-                totalFetched,
-                cardsWithCm,
-                apiSetId,
-                pageSize // Return strict page size for verification
-            },
-            sample: mappings.slice(0, 5)
+            hasMore: hasMore, // CRITICAL: Tells frontend to continue
+            totalCount: totalCount,
+            debug: { apiSetId, pageSize }
         })
 
     } catch (error: any) {

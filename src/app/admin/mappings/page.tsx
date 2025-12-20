@@ -59,40 +59,77 @@ export default function MappingAdminPage() {
         }
     }
 
-    // Helper to sync a single set
+    // Helper to sync a single set (Frontend Loop)
     const syncSet = async (set: SetInfo, retryCount = 0): Promise<{ success: boolean, data?: any, error?: string }> => {
-        try {
-            // Choose endpoint based on mode
-            const endpoint = useFastMode
-                ? `/api/cardmarket/auto-map?expansion=${set.id}&prices=true`
-                : `/api/cardmarket/sync-mappings?set=${set.id}`
-
-            const res = await fetch(endpoint)
-            const text = await res.text()
-
-            // Handle Gateway Timeout
-            if (res.status === 504) throw new Error('Gateway Timeout (API too slow)')
-
-            let data
+        // Fast Mode is simple one-shot
+        if (useFastMode) {
             try {
-                data = JSON.parse(text)
-            } catch (e) {
-                throw new Error(`API Error (${res.status}): ${text.slice(0, 50)}...`)
-            }
+                const endpoint = `/api/cardmarket/auto-map?expansion=${set.id}&prices=true`
+                const res = await fetch(endpoint)
+                const data = await res.json()
 
-            if (data.success) {
-                return { success: true, data }
-            } else {
-                // If Fast Mode failed due to unknown expansion, just skip (it means we haven't mapped the ID yet)
-                if (useFastMode && data.error?.includes('Unknown expansion')) {
+                if (data.success) return { success: true, data }
+
+                if (data.error?.includes('Unknown expansion')) {
                     return { success: false, error: 'Set ID not in catalog map yet (Skipped)' }
                 }
                 throw new Error(data.error || 'Unknown error')
+            } catch (e: any) {
+                return { success: false, error: e.message }
             }
+        }
+
+        // Precise Mode: Frontend-Driven Loop (Page by Page)
+        let page = 1
+        let hasMore = true
+        let totalMapped = 0
+
+        try {
+            while (hasMore) {
+                // Update log to show we are working
+                setLogs(prev => {
+                    const next = [...prev]
+                    if (next[0]?.set === set.name) {
+                        next[0] = {
+                            ...next[0],
+                            message: `Syncing Page ${page}... (Mapped: ${totalMapped})`,
+                            status: 'pending'
+                        }
+                    }
+                    return next
+                })
+
+                const endpoint = `/api/cardmarket/sync-mappings?set=${set.id}&page=${page}`
+                const res = await fetch(endpoint)
+
+                if (!res.ok) {
+                    // If 504, it might be a transient glitch on this page, throw to retry locally if needed
+                    if (res.status === 504) throw new Error(`Gateway Timeout on Page ${page}`)
+                    const text = await res.text()
+                    throw new Error(`API Error (${res.status}): ${text.slice(0, 50)}...`)
+                }
+
+                const data = await res.json()
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown API error')
+                }
+
+                totalMapped += (data.mapped || 0)
+                hasMore = data.hasMore
+
+                if (hasMore) {
+                    page++
+                    // Small delay to be nice to the API/Server
+                    await new Promise(r => setTimeout(r, 200))
+                }
+            }
+
+            return { success: true, data: { mapped: totalMapped } }
+
         } catch (e: any) {
-            // Retry logic only for API Mode (Fast Mode doesn't need network retries usually)
-            if (!useFastMode && retryCount < 2) {
-                return { success: false, error: e.message } // will trigger retry in loop
+            if (retryCount < 2) {
+                return { success: false, error: e.message } // will trigger global retry
             }
             return { success: false, error: e.message }
         }
@@ -278,9 +315,9 @@ export default function MappingAdminPage() {
                             <div className="divide-y divide-slate-800/50">
                                 {logs.map((log, i) => (
                                     <div key={i} className={`p-3 flex gap-3 ${log.status === 'error' ? 'bg-red-900/10 text-red-400' :
-                                            log.status === 'success' ? 'bg-green-900/10 text-green-400' :
-                                                log.status === 'retry' ? 'bg-yellow-900/10 text-yellow-400' :
-                                                    'text-slate-400'
+                                        log.status === 'success' ? 'bg-green-900/10 text-green-400' :
+                                            log.status === 'retry' ? 'bg-yellow-900/10 text-yellow-400' :
+                                                'text-slate-400'
                                         }`}>
                                         <div className="w-4 h-4 mt-0.5 flex-shrink-0">
                                             {log.status === 'success' && '✅'}
