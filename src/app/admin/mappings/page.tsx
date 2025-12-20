@@ -24,6 +24,7 @@ export default function MappingAdminPage() {
     const [sets, setSets] = useState<SetInfo[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [isSyncing, setIsSyncing] = useState(false)
+    const [useFastMode, setUseFastMode] = useState(false) // New Toggle
     const [logs, setLogs] = useState<LogEntry[]>([])
     const [progress, setProgress] = useState(0)
 
@@ -43,7 +44,6 @@ export default function MappingAdminPage() {
             }
 
             if (data.success) {
-                // Sort by release date (newest first)
                 const sorted = data.sets.sort((a: SetInfo, b: SetInfo) =>
                     new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
                 )
@@ -59,16 +59,19 @@ export default function MappingAdminPage() {
         }
     }
 
-    // Helper to sync a single set with retries
+    // Helper to sync a single set
     const syncSet = async (set: SetInfo, retryCount = 0): Promise<{ success: boolean, data?: any, error?: string }> => {
         try {
-            const res = await fetch(`/api/cardmarket/sync-mappings?set=${set.id}`)
+            // Choose endpoint based on mode
+            const endpoint = useFastMode
+                ? `/api/cardmarket/auto-map?expansion=${set.id}&prices=true`
+                : `/api/cardmarket/sync-mappings?set=${set.id}`
+
+            const res = await fetch(endpoint)
             const text = await res.text()
 
-            // Handle Gateway Timeout specially
-            if (res.status === 504) {
-                throw new Error('Gateway Timeout (API too slow)')
-            }
+            // Handle Gateway Timeout
+            if (res.status === 504) throw new Error('Gateway Timeout (API too slow)')
 
             let data
             try {
@@ -80,12 +83,16 @@ export default function MappingAdminPage() {
             if (data.success) {
                 return { success: true, data }
             } else {
+                // If Fast Mode failed due to unknown expansion, just skip (it means we haven't mapped the ID yet)
+                if (useFastMode && data.error?.includes('Unknown expansion')) {
+                    return { success: false, error: 'Set ID not in catalog map yet (Skipped)' }
+                }
                 throw new Error(data.error || 'Unknown error')
             }
         } catch (e: any) {
-            if (retryCount < 2) {
-                // Return generic error to trigger retry loop
-                return { success: false, error: e.message }
+            // Retry logic only for API Mode (Fast Mode doesn't need network retries usually)
+            if (!useFastMode && retryCount < 2) {
+                return { success: false, error: e.message } // will trigger retry in loop
             }
             return { success: false, error: e.message }
         }
@@ -93,7 +100,7 @@ export default function MappingAdminPage() {
 
     // Sync all sets one by one
     const syncAll = async () => {
-        if (!confirm(`Are you sure you want to map ALL ${sets.length} sets? This will take a while.`)) return
+        if (!confirm(`Start Bulk Mapping? Mode: ${useFastMode ? 'FAST (Catalog)' : 'PRECISE (API)'}`)) return
 
         setIsSyncing(true)
         setLogs([])
@@ -103,13 +110,11 @@ export default function MappingAdminPage() {
         let completed = 0
 
         for (const set of sets) {
-            // Add pending log
             setLogs(prev => [{ set: set.name, status: 'pending', message: 'Starting...' }, ...prev])
 
             let attempt = 0
             let result: { success: boolean, data?: any, error?: string } | undefined
 
-            // Try up to 3 times
             while (attempt < 3) {
                 if (attempt > 0) {
                     setLogs(prev => {
@@ -117,12 +122,13 @@ export default function MappingAdminPage() {
                         next[0] = { ...next[0], status: 'retry', message: `Retrying (${attempt}/3)...` }
                         return next
                     })
-                    // Wait longer between retries
                     await new Promise(r => setTimeout(r, 2000 * attempt))
                 }
 
                 result = await syncSet(set, attempt)
                 if (result.success) break
+                // Don't retry fast mode errors (usually logic errors, not network)
+                if (useFastMode) break
                 attempt++
             }
 
@@ -143,7 +149,7 @@ export default function MappingAdminPage() {
                     next[0] = {
                         set: set.name,
                         status: 'error',
-                        message: result?.error || 'Failed after retries'
+                        message: result?.error || 'Failed'
                     }
                     return next
                 })
@@ -151,8 +157,6 @@ export default function MappingAdminPage() {
 
             completed++
             setProgress((completed / total) * 100)
-
-            // Respect rate limits - wait 1s between sets
             await new Promise(r => setTimeout(r, 1000))
         }
 
@@ -171,7 +175,20 @@ export default function MappingAdminPage() {
                         Manage relations between TCGdex and Cardmarket IDs
                     </p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-4 items-center">
+                    <div className="flex items-center space-x-2 mr-4 bg-slate-900 p-2 rounded border border-slate-800">
+                        <input
+                            type="checkbox"
+                            id="fastMode"
+                            checked={useFastMode}
+                            onChange={(e) => setUseFastMode(e.target.checked)}
+                            className="w-4 h-4"
+                        />
+                        <label htmlFor="fastMode" className="text-sm font-medium cursor-pointer select-none">
+                            ⚡ Fast Mode (Catalog)
+                        </label>
+                    </div>
+
                     <button
                         onClick={loadSets}
                         disabled={isLoading || isSyncing}
