@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { POPULAR_CARD_MAPPINGS } from '@/scripts/build-cardmarket-mapping'
+import { POPULAR_CARD_MAPPINGS } from '@/lib/cardmarket-mappings'
 
 // Supabase admin client
 const supabase = createClient(
@@ -35,17 +35,19 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Check manual mappings
-    const manualId = POPULAR_CARD_MAPPINGS[tcgdexId]
-    if (manualId) {
+    const manualMapping = POPULAR_CARD_MAPPINGS[tcgdexId]
+    if (manualMapping) {
         // Save to database for future use
-        await saveMapping(tcgdexId, manualId)
+        await saveMapping(tcgdexId, manualMapping.id)
 
         return NextResponse.json({
             found: true,
             source: 'manual',
             mapping: {
                 tcgdex_id: tcgdexId,
-                cardmarket_id: manualId
+                cardmarket_id: manualMapping.id,
+                card_name: manualMapping.name,
+                set_name: manualMapping.set
             }
         })
     }
