@@ -10,6 +10,7 @@ interface AiInsightProps {
 }
 
 interface AiResponse {
+    summary: string
     analysis: {
         context: string
         diagnosis: string
@@ -114,12 +115,22 @@ export function AiInsight({ cardName, price, trend, scores }: AiInsightProps) {
                                 </div>
                             </div>
                             <div className={`px-4 py-2 rounded-lg font-bold ${data.analysis.verdict.toLowerCase().includes('buy') ? 'bg-green-500/20 text-green-400' :
-                                    data.analysis.verdict.toLowerCase().includes('sell') ? 'bg-red-500/20 text-red-400' :
-                                        'bg-yellow-500/20 text-yellow-400'
+                                data.analysis.verdict.toLowerCase().includes('sell') ? 'bg-red-500/20 text-red-400' :
+                                    'bg-yellow-500/20 text-yellow-400'
                                 }`}>
                                 {data.analysis.verdict}
                             </div>
                         </div>
+
+                        {/* AI Summary - Main insight */}
+                        {data.summary && (
+                            <div className="bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 p-4 rounded-xl border border-cyan-500/20">
+                                <p className="text-gray-200 leading-relaxed">
+                                    <Sparkles className="w-4 h-4 inline mr-2 text-cyan-400" />
+                                    {data.summary}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Analysis Text */}
                         <div className="prose prose-invert prose-sm">

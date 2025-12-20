@@ -39,11 +39,12 @@ export async function generateCardAnalysis(cardName: string, price: number, tren
         
         Task:
         Provide a JSON response with:
-        1. "analysis": A nested object with:
+        1. "summary": A concise 2-3 sentence analysis explaining why this card is or isn't a good investment right now. Be specific and mention key factors.
+        2. "analysis": A nested object with:
             - "context": brief context (vintage/modern/etc)
             - "diagnosis": what the scores indicate
             - "verdict": Buy, Hold, or Sell verdict
-        2. "scores": Evaluate and generate 5 dimension scores (0-100) based on your expert knowledge and the data:
+        3. "scores": Evaluate and generate 5 dimension scores (0-100) based on your expert knowledge and the data:
             - "volatility": Stability (100 = Very Stable/Safe, 0 = Volatile)
             - "growth": Potential for growth (100 = High potential)
             - "scarcity": Supply constraints
