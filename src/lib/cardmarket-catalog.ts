@@ -87,21 +87,24 @@ export async function fetchProductCatalog(): Promise<Map<number, CardmarketProdu
 
 /**
  * Known Cardmarket Expansion ID mappings to TCGdex set IDs
- * Build this incrementally as we discover mappings
+ * Values validated via debug-catalog-simple.cjs
  */
 export const EXPANSION_MAP: Record<number, string> = {
-    // Scarlet & Violet Era
-    2408: 'sv8a',    // Prismatic Evolutions
-    2338: 'sv7',     // Stellar Crown  
-    2296: 'sv6pt5',  // Shrouded Fable
-    2249: 'sv6',     // Twilight Masquerade
-    2200: 'sv5',     // Temporal Forces
-    2155: 'sv4pt5',  // Paldean Fates
-    2107: 'sv4',     // Paradox Rift
-    2058: 'sv3pt5',  // Pokemon 151
-    2008: 'sv3',     // Obsidian Flames
-    1962: 'sv2',     // Paldea Evolved
-    1906: 'sv1',     // Scarlet & Violet Base
+    // Scarlet & Violet Era (Validated)
+    6009: 'sv8pt5',  // Prismatic Evolutions
+    5402: 'sv3pt5',  // Pokemon 151
+
+    // Other Sets (To verify if needed, kept from older list but commented if unsure)
+    // 2408: 'sv8a', // OLD ID ?
+    // 2338: 'sv7',     // Stellar Crown  
+    // 2296: 'sv6pt5',  // Shrouded Fable
+    // 2249: 'sv6',     // Twilight Masquerade
+    // 2200: 'sv5',     // Temporal Forces
+    // 2155: 'sv4pt5',  // Paldean Fates
+    // 2107: 'sv4',     // Paradox Rift
+    // 2008: 'sv3',     // Obsidian Flames
+    // 1962: 'sv2',     // Paldea Evolved
+    // 1906: 'sv1',     // Scarlet & Violet Base
 
     // Sword & Shield Era
     1880: 'swsh12pt5', // Crown Zenith
