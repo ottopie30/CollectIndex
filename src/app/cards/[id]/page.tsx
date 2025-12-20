@@ -29,6 +29,9 @@ import {
     Activity,
     Zap
 } from 'lucide-react'
+import SpotlightCard from '@/components/ui/SpotlightCard'
+import FadeContent from '@/components/ui/FadeContent'
+import CountUp from '@/components/ui/CountUp'
 
 // Generate mock price history (will be replaced by real data later)
 function generateMockPriceHistory(cardName: string) {
@@ -316,7 +319,10 @@ export default function CardDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left column - Card image */}
                 <div className="lg:col-span-1">
-                    <div className="glass rounded-2xl p-6 sticky top-6">
+                    <SpotlightCard
+                        className="sticky top-6 !p-6"
+                        spotlightColor="rgba(139, 92, 246, 0.25)"
+                    >
                         {/* Card image */}
                         <div className="relative aspect-[63/88] rounded-xl overflow-hidden bg-white/5 mb-6">
                             {card.image ? (
@@ -350,7 +356,7 @@ export default function CardDetailPage() {
                                 <span className="text-xs text-white/60">Partager</span>
                             </button>
                         </div>
-                    </div>
+                    </SpotlightCard>
                 </div>
 
                 {/* Right column - Details */}
@@ -380,19 +386,24 @@ export default function CardDetailPage() {
                         </div>
 
                         {/* Price info */}
-                        <div className="flex items-end gap-6 pt-4 border-t border-white/10">
-                            <div>
-                                <p className="text-sm text-white/50">Prix actuel estimé</p>
-                                <p className="text-3xl font-bold text-white">{formatPrice(currentPrice)}</p>
+                        <FadeContent blur duration={600} delay={200}>
+                            <div className="flex items-end gap-6 pt-4 border-t border-white/10">
+                                <div>
+                                    <p className="text-sm text-white/50">Prix actuel estimé</p>
+                                    <p className="text-3xl font-bold text-white">
+                                        <CountUp to={currentPrice} duration={1.5} separator=" " className="text-3xl font-bold" />
+                                        <span className="ml-1">€</span>
+                                    </p>
+                                </div>
+                                <div className={`flex items-center gap-1 ${priceChange >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {priceChange >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                                    <span className="text-lg font-semibold">
+                                        {priceChange >= 0 ? '+' : ''}<CountUp to={Math.abs(priceChange)} duration={1.5} className="inline" />%
+                                    </span>
+                                    <span className="text-white/40 text-sm">90j</span>
+                                </div>
                             </div>
-                            <div className={`flex items-center gap-1 ${priceChange >= 0 ? 'text-white' : 'text-white/60'}`}>
-                                {priceChange >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                                <span className="text-lg font-semibold">
-                                    {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(1)}%
-                                </span>
-                                <span className="text-white/40 text-sm">90j</span>
-                            </div>
-                        </div>
+                        </FadeContent>
                     </div>
 
                     {/* Score breakdown */}

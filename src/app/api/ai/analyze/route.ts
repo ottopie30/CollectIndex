@@ -11,15 +11,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing data' }, { status: 400 })
         }
 
-        const analysis = await generateCardAnalysis(cardName, price, trend, scores)
+        const result = await generateCardAnalysis(cardName, price, trend, scores)
 
-        if (!analysis) {
+        if (!result) {
             return NextResponse.json({
-                analysis: "L'analyse IA est temporairement indisponible (Clé API manquante ou erreur service)."
+                summary: "L'analyse IA est temporairement indisponible.",
+                analysis: {
+                    context: "Service indisponible",
+                    diagnosis: "Clé API manquante ou erreur service",
+                    verdict: "Hold"
+                },
+                scores: { volatility: 50, growth: 50, scarcity: 50, sentiment: 50, macro: 50 }
             })
         }
 
-        return NextResponse.json({ analysis })
+        // Return the parsed Gemini response directly (already has summary, analysis, scores)
+        return NextResponse.json(result)
     } catch (error) {
         console.error('Analysis Error:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

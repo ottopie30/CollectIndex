@@ -23,6 +23,10 @@ import {
   TrendingCard,
   DashboardAlert
 } from '@/lib/marketStats'
+import Aurora from '@/components/ui/Aurora'
+import FadeContent from '@/components/ui/FadeContent'
+import CountUp from '@/components/ui/CountUp'
+import ShinyText from '@/components/ui/ShinyText'
 
 function StatCard({
   title,
@@ -105,20 +109,33 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Aurora Background */}
+      <div className="fixed inset-0 -z-10 opacity-30">
+        <Aurora
+          colorStops={['#00D4FF', '#7C3AED', '#F472B6']}
+          amplitude={0.8}
+          speed={0.3}
+        />
+      </div>
+
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">{t('dashboard.title')}</h1>
-          <p className="text-white/50 mt-1">{t('dashboard.marketOverview')}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 glass rounded-xl">
-            <span className="text-sm text-white/50">{t('dashboard.marketHealth')}</span>
-            <span className="ml-2 text-amber-400 font-bold">42/100</span>
+      <FadeContent blur duration={800}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              <ShinyText text={t('dashboard.title')} speed={3} className="text-3xl font-bold" />
+            </h1>
+            <p className="text-white/50 mt-1">{t('dashboard.marketOverview')}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 glass rounded-xl">
+              <span className="text-sm text-white/50">{t('dashboard.marketHealth')}</span>
+              <span className="ml-2 text-amber-400 font-bold">42/100</span>
+            </div>
           </div>
         </div>
-      </div>
+      </FadeContent>
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
