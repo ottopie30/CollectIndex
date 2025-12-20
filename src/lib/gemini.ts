@@ -9,8 +9,8 @@ if (!API_KEY) {
 
 const genAI = API_KEY ? new GoogleGenerativeAI(API_KEY) : null
 
-// Use the latest flash model available
-const MODEL_NAME = 'gemini-3-flash-preview' // or 'gemini-2.0-flash-exp' if available to user
+// Use gemini-2.0-flash-exp for best performance
+const MODEL_NAME = 'gemini-2.0-flash-exp'
 
 export async function generateCardAnalysis(cardName: string, setName: string, price: number, trend: number, scores: any) {
     if (!genAI) return null
@@ -56,18 +56,24 @@ export async function generateCardAnalysis(cardName: string, setName: string, pr
         Output Language: French.
         `
 
+        console.log('📤 Calling Gemini with:', { cardName, setName, price, trend })
+
         const result = await model.generateContent(prompt)
         const response = await result.response
         const text = response.text()
 
+        console.log('📥 Gemini response received, length:', text.length)
+
         try {
-            return JSON.parse(text)
+            const parsed = JSON.parse(text)
+            console.log('✅ Gemini JSON parsed successfully')
+            return parsed
         } catch (e) {
-            console.error('Failed to parse Gemini JSON:', e)
+            console.error('❌ Failed to parse Gemini JSON:', e, 'Raw text:', text.substring(0, 500))
             return null
         }
-    } catch (error) {
-        console.error('Gemini Analysis Failed:', error)
+    } catch (error: any) {
+        console.error('❌ Gemini Analysis Failed:', error?.message || error)
         return null
     }
 }

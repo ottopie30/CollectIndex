@@ -391,7 +391,7 @@ export default function CardDetailPage() {
                                 <div>
                                     <p className="text-sm text-white/50">Prix actuel estimé</p>
                                     <p className="text-3xl font-bold text-white">
-                                        <CountUp to={currentPrice} duration={1.5} separator=" " className="text-3xl font-bold" />
+                                        <CountUp to={currentPrice} duration={0.6} separator=" " className="text-3xl font-bold" />
                                         <span className="ml-1">€</span>
                                     </p>
                                 </div>
