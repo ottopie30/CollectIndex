@@ -1,10 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-// Removed missing component imports
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-// import { Button } from '@/components/ui/button'
-// import { Badge } from '@/components/ui/badge'
 
 interface SetInfo {
     id: string
@@ -36,16 +32,28 @@ export default function MappingAdminPage() {
         setIsLoading(true)
         try {
             const res = await fetch('/api/cardmarket/sync-mappings?mode=list')
-            const data = await res.json()
+            const text = await res.text()
+
+            let data
+            try {
+                data = JSON.parse(text)
+            } catch (e) {
+                console.error('API returned non-JSON:', text.slice(0, 500))
+                throw new Error(`API Error (${res.status}): ${text.slice(0, 100)}... (Check Console)`)
+            }
+
             if (data.success) {
                 // Sort by release date (newest first)
                 const sorted = data.sets.sort((a: SetInfo, b: SetInfo) =>
                     new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()
                 )
                 setSets(sorted)
+            } else {
+                throw new Error(data.error || 'Unknown API error')
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to load sets', e)
+            alert(e.message)
         } finally {
             setIsLoading(false)
         }
@@ -68,7 +76,14 @@ export default function MappingAdminPage() {
 
             try {
                 const res = await fetch(`/api/cardmarket/sync-mappings?set=${set.id}`)
-                const data = await res.json()
+                const text = await res.text()
+
+                let data
+                try {
+                    data = JSON.parse(text)
+                } catch (e) {
+                    throw new Error(`API Error (${res.status}): ${text.slice(0, 50)}...`)
+                }
 
                 if (data.success) {
                     setLogs(prev => {
